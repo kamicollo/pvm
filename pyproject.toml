@@ -1,0 +1,17 @@
+[project]
+name = "pvm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "altair>=5.4.1",
+    "polars>=1.12.0",
+]
+
+[project.scripts]
+hello = "pvm:hello"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
