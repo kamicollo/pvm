@@ -6,7 +6,11 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "altair>=5.4.1",
-    "ibis>=3.3.0",
+    "gcsfs>=2024.10.0",
+    "ibis-framework[duckdb,pins,polars,snowflake,sqlite]>=9.5.0",
+    "ipykernel>=6.29.5",
+    "jupyterlab>=4.3.0",
+    "pins>=0.8.6",
     "polars>=1.12.0",
 ]
 
