@@ -82,7 +82,7 @@ class BaseField(ABC):
             flat_graph.extend(component.get_flattened_graph())
         return flat_graph
 
-    def effect_fields(self, start: str, end: str) -> list[Deferred]:
+    def effect_fields(self, start: str, end: str, expr_prefix=1) -> list[Deferred]:
         fields = []
         if self.rate and self.quantity:
             quantity_change = (
@@ -99,30 +99,46 @@ class BaseField(ABC):
                 .when(
                     (col[self.quantity.name + "_" + end] != 0)
                     & (col[self.quantity.name + "_" + start] != 0),
-                    quantity_change * col[self.rate.name + "_" + end],
+                    quantity_change * col[self.rate.name + "_" + end] * expr_prefix,
                 )
-                .else_(quantity_change)
+                .else_(quantity_change * expr_prefix)
                 .end()
                 .name(self.quantity.name + "_effect_" + start)
             )
+
+            if self.quantity.components:
+                fields.extend(
+                    self.quantity.effect_fields(
+                        start, end, expr_prefix * (col[self.rate.name + "_" + end])
+                    )
+                )
 
             fields.append(
                 ibis.case()
                 .when(
                     (col[self.quantity.name + "_" + end] != 0)
                     & (col[self.quantity.name + "_" + start] != 0),
-                    rate_change * col[self.rate.name + "_" + start],
+                    rate_change * col[self.quantity.name + "_" + start] * expr_prefix,
                 )
                 .else_(0)
                 .end()
                 .name(self.rate.name + "_effect_" + start)
             )
 
+            if self.rate.components:
+                fields.extend(
+                    self.rate.effect_fields(
+                        start,
+                        end,
+                        expr_prefix * (col[self.quantity.name + "_" + start]),
+                    )
+                )
+
         for f in self.other_components:
             fields.append(
-                (col[f.name + "_" + end] - col[f.name + "_" + start]).name(
-                    f.name + "_effect_" + start
-                )
+                (
+                    (col[f.name + "_" + end] - col[f.name + "_" + start]) * expr_prefix
+                ).name(f.name + "_effect_" + start)
             )
         return fields
 
