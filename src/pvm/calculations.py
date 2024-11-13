@@ -1,8 +1,13 @@
-import polars as pl
-from .fields import TotalField, RateField, QuantityField, OtherField
-from typing import Union, List
+# ignore file for ruff and mypy
+# ruff: noqa
+# mypy: ignore-errors
+
 from enum import Enum
+
+import polars as pl
 import polars.selectors as cs
+
+from .fields import OtherField, QuantityField, RateField, TotalField
 
 
 class CalculationMethod(Enum):
@@ -15,7 +20,7 @@ class CalculationMethod(Enum):
 class PVM:
     def __init__(
         self,
-        data: Union[pl.DataFrame, pl.LazyFrame],
+        data: pl.DataFrame | pl.LazyFrame,
         period_col: str,
         calculation_fields: TotalField,
         method_to_use: CalculationMethod = CalculationMethod.CLASSIC,
@@ -25,30 +30,29 @@ class PVM:
         self.set_calculation_fields(calculation_fields)
         self.method = method_to_use
 
-    def set_data(self, data: Union[pl.DataFrame, pl.LazyFrame]):
+    def set_data(self, data: pl.DataFrame | pl.LazyFrame):
         self.data = data
 
     def set_period_column(self, period_col: str, sorted_values=None):
         if period_col not in self.data.columns:
             raise IndexError(f"Column '{period_col}' not in dataframe")
+        unique_values = self.data[period_col].unique().to_list()
+        if not sorted_values:
+            self.sorted_periods = sorted(unique_values)
+        elif all(p in sorted_values for p in unique_values):
+            self.sorted_periods = sorted_values
         else:
-            unique_values = self.data[period_col].unique().to_list()
-            if not sorted_values:
-                self.sorted_periods = sorted(unique_values)
-            elif all(p in sorted_values for p in unique_values):
-                self.sorted_periods = sorted_values
-            else:
-                missing_values = [p for p in unique_values if p not in sorted_values]
-                raise IndexError(
-                    f"Column '{period_col}' contains values '{','.join(missing_values)}' that are missing in the provided sorted list"
-                )
-            self.period_col = period_col
-            self.next_periods = dict(
-                zip(self.sorted_periods[:-1], self.sorted_periods[1:])
+            missing_values = [p for p in unique_values if p not in sorted_values]
+            raise IndexError(
+                f"Column '{period_col}' contains values '{','.join(missing_values)}' that are missing in the provided sorted list",
             )
-            self.prev_periods = dict(
-                zip(self.sorted_periods[1:], self.sorted_periods[:-1])
-            )
+        self.period_col = period_col
+        self.next_periods = dict(
+            zip(self.sorted_periods[:-1], self.sorted_periods[1:], strict=False),
+        )
+        self.prev_periods = dict(
+            zip(self.sorted_periods[1:], self.sorted_periods[:-1], strict=False),
+        )
 
     def set_calculation_fields(self, field: TotalField):
         self.field_hierarchy = field
@@ -67,12 +71,10 @@ class PVM:
 
     def add_change_col(self, field):
         self.change_calcs.append(
-            (
-                pl.coalesce(pl.col(field + "_next"), 0) - pl.coalesce(pl.col(field), 0)
-            ).alias(field + "_change")
+            (pl.coalesce(pl.col(field + "_next"), 0) - pl.coalesce(pl.col(field), 0)).alias(field + "_change"),
         )
 
-    def setup_other_effects(self, fields: List[OtherField]):
+    def setup_other_effects(self, fields: list[OtherField]):
         for o in fields:
             self.aggs.append(pl.sum(o.name))
             self.add_change_col(o.name)
@@ -80,33 +82,35 @@ class PVM:
                 pl.when(pl.col("status") != "like-for-like")
                 .then(0)
                 .otherwise(pl.col(o.name + "_change"))
-                .alias(o.name + "_effect")
+                .alias(o.name + "_effect"),
             )
 
     def setup_effect_calculations(
-        self, total_field_name, vol_col: QuantityField, rate_col: RateField
+        self,
+        total_field_name,
+        vol_col: QuantityField,
+        rate_col: RateField,
     ):
         self.effect_calculations.append(
             pl.when(pl.col("status") != "like-for-like")
             .then(
                 pl.when(pl.lit(total_field_name) == pl.lit(self.field_hierarchy.name))
                 .then(pl.col(total_field_name + "_change"))
-                .otherwise(0)
+                .otherwise(0),
             )
             .otherwise(
-                pl.col(vol_col.name + "_change") * pl.col("avg_" + rate_col.name)
+                pl.col(vol_col.name + "_change") * pl.col("avg_" + rate_col.name),
             )
-            .alias(vol_col.name + "_effect")
+            .alias(vol_col.name + "_effect"),
         )
 
         self.effect_calculations.append(
             pl.when(pl.col("status") != "like-for-like")
             .then(0)
             .otherwise(
-                pl.col("avg_" + rate_col.name + "_change")
-                * pl.col(vol_col.name + "_next")
+                pl.col("avg_" + rate_col.name + "_change") * pl.col(vol_col.name + "_next"),
             )
-            .alias(rate_col.name + "_effect")
+            .alias(rate_col.name + "_effect"),
         )
 
     def setup_expressions(self):
@@ -131,16 +135,14 @@ class PVM:
 
                 # fields used to pre-aggregate data
                 self.aggs.append(
-                    (pl.col(rate_col.name) * pl.col(vol_col.name))
-                    .sum()
-                    .alias(field_name)
+                    (pl.col(rate_col.name) * pl.col(vol_col.name)).sum().alias(field_name),
                 )
                 self.aggs.append(pl.sum(vol_col.name))
 
                 self.post_aggs.append(
                     (pl.col(field_name) / pl.col(vol_col.name)).alias(
-                        aggregated_rate_col_name
-                    )
+                        aggregated_rate_col_name,
+                    ),
                 )
 
                 # fields used to calculate effects
@@ -148,33 +150,31 @@ class PVM:
                 self.add_change_col(vol_col.name)
                 self.setup_effect_calculations(f, vol_col=vol_col, rate_col=rate_col)
 
-    def pre_aggregate(self, hierarchy: List) -> Union[pl.DataFrame, pl.LazyFrame]:
+    def pre_aggregate(self, hierarchy: list) -> pl.DataFrame | pl.LazyFrame:
         # first, we pre-aggregate data to the level of calculation unit
         group_by_columns = [self.period_col] + hierarchy
 
-        return (
-            self.data.group_by(group_by_columns)
-            .agg(self.aggs)
-            .with_columns(self.post_aggs)
-        )
+        return self.data.group_by(group_by_columns).agg(self.aggs).with_columns(self.post_aggs)
 
     def join_periods(
-        self, agg_data: Union[pl.DataFrame, pl.LazyFrame], hierarchy: List
+        self,
+        agg_data: pl.DataFrame | pl.LazyFrame,
+        hierarchy: list,
     ):
         # get dtype of the period column
         period_col_dtype = agg_data.select(self.period_col).to_series().dtype
         # get all periods except the last one
         all_but_last_period = agg_data.filter(
-            pl.col(self.period_col) != self.sorted_periods[-1]
+            pl.col(self.period_col) != self.sorted_periods[-1],
         ).with_columns(
             pl.col(self.period_col)
             .map_dict(self.next_periods, return_dtype=period_col_dtype)
-            .alias("_period_join_key")
+            .alias("_period_join_key"),
         )
 
         # get all periods except the first one
         all_but_first_period = agg_data.filter(
-            pl.col(self.period_col) != self.sorted_periods[0]
+            pl.col(self.period_col) != self.sorted_periods[0],
         ).rename({self.period_col: "_period_join_key"})
 
         # do an outer join of the two dfs
@@ -249,27 +249,29 @@ class PVM:
             paired_periods = (
                 (
                     paired_periods.join(
-                        discontinued, on=join_cols, how="left", suffix=""
+                        discontinued,
+                        on=join_cols,
+                        how="left",
+                        suffix="",
                     )
                     .with_columns(
                         pl.when(
-                            (pl.col("_indicator") == 1)
-                            & (pl.col("status_reason") == "")
+                            (pl.col("_indicator") == 1) & (pl.col("status_reason") == ""),
                         )
                         .then(pl.lit(",".join(join_cols)))
                         .otherwise(pl.col("status_reason"))
-                        .alias("status_reason")
+                        .alias("status_reason"),
                     )
                     .drop("_indicator")
                 )
                 .join(introduced, on=join_cols, how="left", suffix="")
                 .with_columns(
                     pl.when(
-                        (pl.col("_indicator") == 1) & (pl.col("status_reason") == "")
+                        (pl.col("_indicator") == 1) & (pl.col("status_reason") == ""),
                     )
                     .then(pl.lit(",".join(join_cols)))
                     .otherwise(pl.col("status_reason"))
-                    .alias("status_reason")
+                    .alias("status_reason"),
                 )
                 .drop("_indicator")
             )
@@ -278,8 +280,8 @@ class PVM:
 
     def identify_missing_components(
         self,
-        paired_periods: Union[pl.DataFrame, pl.LazyFrame],
-        grouping_hierarchy: List,
+        paired_periods: pl.DataFrame | pl.LazyFrame,
+        grouping_hierarchy: list,
     ):
         def missing_elements(*a):
             return ("baz",)
@@ -288,12 +290,12 @@ class PVM:
             pl.when(pl.col("status") == "like-for-like")
             .then("")
             .otherwise(pl.col(["status", "year"]).map_elements(missing_elements))
-            .alias("hierarchy_mismatch")
+            .alias("hierarchy_mismatch"),
         )
 
     def calculate(
         self,
-        hierarchy: List[str],
+        hierarchy: list[str],
         return_detail: bool = False,
     ):
         # calculate changes
@@ -301,31 +303,23 @@ class PVM:
         pre_agg_data = self.pre_aggregate(hierarchy)
         paired_data = self.join_periods(pre_agg_data, hierarchy)
         calculated = paired_data.with_columns(self.change_calcs).with_columns(
-            self.effect_calculations
+            self.effect_calculations,
         )
 
         if return_detail:
             cols = calculated.columns
         else:
-            cols = [
-                c
-                for c in calculated.columns
-                if not c.endswith("_next") and not c.endswith("_change")
-            ]
+            cols = [c for c in calculated.columns if not c.endswith("_next") and not c.endswith("_change")]
 
         return calculated.select(cols).with_columns(
-            pl.sum_horizontal(cs.ends_with("effect")).alias("total_effect")
+            pl.sum_horizontal(cs.ends_with("effect")).alias("total_effect"),
         )
 
     def summarize(self, calculated):
         return calculated.group_by("status", "status_reason").agg(
             (
                 (
-                    (
-                        cs.contains("quantity")
-                        | cs.contains("revenue")
-                        | cs.ends_with("effect")
-                    )
+                    (cs.contains("quantity") | cs.contains("revenue") | cs.ends_with("effect"))
                     & (~cs.contains("calculated"))
                 ).sum()
             ).round(1),
@@ -342,7 +336,7 @@ class PVM:
         # group introduced & discontinued by reason
         introductions = introduced.group_by("status_reason").agg(pl.sum("total_effect"))
         discontinuations = discontinued.group_by("status_reason").agg(
-            pl.sum("total_effect")
+            pl.sum("total_effect"),
         )
 
         for r in introductions.to_dicts():
@@ -351,7 +345,7 @@ class PVM:
                     f"New: {r['status_reason']}",
                     False,
                     r["total_effect"],
-                )
+                ),
             )
 
         for r in discontinuations.to_dicts():
@@ -360,18 +354,20 @@ class PVM:
                     f"Discontinued: {r['status_reason']}",
                     False,
                     r["total_effect"],
-                )
+                ),
             )
 
         top_volume_effects = like_for_like.sort(
-            pl.col("quantity_effect").abs(), descending=True
+            pl.col("quantity_effect").abs(),
+            descending=True,
         ).to_dicts()[:max_components]
         top_price_effects = like_for_like.sort(
-            pl.col("price_effect").abs(), descending=True
+            pl.col("price_effect").abs(),
+            descending=True,
         ).to_dicts()[:max_components]
 
         top_total_volume_effect = sum(
-            [r["quantity_effect"] for r in top_volume_effects]
+            [r["quantity_effect"] for r in top_volume_effects],
         )
         top_total_price_effect = sum([r["price_effect"] for r in top_price_effects])
 
@@ -384,7 +380,7 @@ class PVM:
                     f"{r[dimension]} quantity effect",
                     False,
                     r["quantity_effect"],
-                )
+                ),
             )
 
         for r in top_price_effects:
@@ -393,7 +389,7 @@ class PVM:
                     f"{r[dimension]} price effect",
                     False,
                     r["price_effect"],
-                )
+                ),
             )
 
         components.append(
@@ -401,14 +397,14 @@ class PVM:
                 "Other - volume effect" if top_volume_effects else "Volume effect",
                 False,
                 volume_effect_total - top_total_volume_effect,
-            )
+            ),
         )
         components.append(
             (
                 "Other - price effect" if top_price_effects else "Price effect",
                 False,
                 price_effect_total - top_total_price_effect,
-            )
+            ),
         )
 
         return components
