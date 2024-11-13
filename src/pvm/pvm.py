@@ -2,6 +2,7 @@ from enum import Enum
 import ibis
 from .fields import Field, BaseField
 from typing import Self
+from .formulas import derive_effect_fields
 
 
 class CalculationMethod(Enum):
@@ -51,10 +52,7 @@ class PVM:
                 self.data.filter(self.period_expression.isin(list(self.period_order)))
                 .group_by(self.hierarchy + [self.period_expression.name("period")])
                 .aggregate(
-                    [
-                        f.definition.name(f.name)
-                        for f in self.graph.get_flattened_graph()
-                    ]
+                    [f.formula.name(f.name) for f in self.graph.get_flattened_graph()]
                 )
                 .pivot_wider(
                     names=self.period_order,
@@ -71,5 +69,5 @@ class PVM:
         for period_start, period_end in zip(
             self.period_order[:-1], self.period_order[1:]
         ):
-            t = t.mutate(self.graph.effect_fields(period_start, period_end))
+            t = t.mutate(derive_effect_fields(self.graph, period_start, period_end))
         return t

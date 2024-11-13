@@ -3,8 +3,6 @@ import dataclasses
 from abc import ABC
 from typing import List, Literal
 from ibis import Deferred
-from ibis import deferred as col
-import ibis
 
 # Define the literal type for field types
 FieldType = Literal["simple", "rate", "quantity"]
@@ -37,8 +35,24 @@ class BaseField(ABC):
     def quantity(self) -> QuantityField | None:
         return next(iter(self._quantity_components), None)
 
+    @property
+    def calculated_definition(self) -> Deferred | None:
+        if self.components:
+            return (self.rate.definition * self.quantity.definition) + sum(
+                [c.definition for c in self.other_components]
+            )
+        else:
+            return None
+
+    @property
+    def formula(self) -> Deferred:
+        if self.definition is not None:
+            return self.definition
+        else:
+            return self.calculated_definition
+
     def _validate_components(self):
-        if self.components and self.definition is None:
+        if not self.components and self.definition is None:
             raise ValueError(
                 f"Field '{self.name}' must have either components or a definition"
             )
@@ -64,15 +78,7 @@ class BaseField(ABC):
         self.components.append(
             Field(
                 name=self.name + "_rec",
-                definition=(
-                    (self.definition)
-                    - (
-                        (self.rate.definition * self.quantity.definition)
-                        if self.rate
-                        else 0
-                    )
-                    - sum([c.definition for c in self.other_components])
-                ),
+                definition=((self.definition) - self.calculated_definition),
             )
         )
 
@@ -81,66 +87,6 @@ class BaseField(ABC):
         for component in self.components:
             flat_graph.extend(component.get_flattened_graph())
         return flat_graph
-
-    def effect_fields(self, start: str, end: str, expr_prefix=1) -> list[Deferred]:
-        fields = []
-        if self.rate and self.quantity:
-            quantity_change = (
-                col[self.quantity.name + "_" + end]
-                - col[self.quantity.name + "_" + start]
-            )
-            rate_change = (
-                col[self.rate.name + "_" + end] - col[self.rate.name + "_" + start]
-            )
-            fields.append(rate_change.name(self.rate.name + "_change_" + start))
-            fields.append(quantity_change.name(self.quantity.name + "_change_" + start))
-            fields.append(
-                ibis.case()
-                .when(
-                    (col[self.quantity.name + "_" + end] != 0)
-                    & (col[self.quantity.name + "_" + start] != 0),
-                    quantity_change * col[self.rate.name + "_" + end] * expr_prefix,
-                )
-                .else_(quantity_change * expr_prefix)
-                .end()
-                .name(self.quantity.name + "_effect_" + start)
-            )
-
-            if self.quantity.components:
-                fields.extend(
-                    self.quantity.effect_fields(
-                        start, end, expr_prefix * (col[self.rate.name + "_" + end])
-                    )
-                )
-
-            fields.append(
-                ibis.case()
-                .when(
-                    (col[self.quantity.name + "_" + end] != 0)
-                    & (col[self.quantity.name + "_" + start] != 0),
-                    rate_change * col[self.quantity.name + "_" + start] * expr_prefix,
-                )
-                .else_(0)
-                .end()
-                .name(self.rate.name + "_effect_" + start)
-            )
-
-            if self.rate.components:
-                fields.extend(
-                    self.rate.effect_fields(
-                        start,
-                        end,
-                        expr_prefix * (col[self.quantity.name + "_" + start]),
-                    )
-                )
-
-        for f in self.other_components:
-            fields.append(
-                (
-                    (col[f.name + "_" + end] - col[f.name + "_" + start]) * expr_prefix
-                ).name(f.name + "_effect_" + start)
-            )
-        return fields
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
