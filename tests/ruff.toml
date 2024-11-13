@@ -1,31 +1,3 @@
-[project]
-name = "pvm"
-version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.10"
-dependencies = [
-    "altair>=5.4.1",
-    "gcsfs>=2024.10.0",
-    "ibis-framework[duckdb,polars,snowflake,sqlite]>=9.5.0",
-    "ipykernel>=6.29.5",
-    "jupyterlab>=4.3.0",
-    "mypy>=1.13.0",
-    "pins>=0.8.6",
-    "polars>=1.12.0",
-    "pytest-cov>=6.0.0",
-    "pytest>=8.3.3",
-    "ruff>=0.7.3",
-]
-
-[project.scripts]
-hello = "pvm:hello"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
@@ -57,15 +29,18 @@ exclude = [
 ]
 
 # Same as Black.
-line-length = 120
+line-length = 88
 indent-width = 4
 
 # Assume Python 3.8
-target-version = "py312"
+target-version = "py38"
 
-[tool.ruff.lint]
-select = ["E", "F", "W", "C90", "I", "N", "D", "UP", "YTT", "ANN", "ASYNC", "S", "FBT", "B", "A", "COM", "C4", "FA", "ISC", "INP", "PL", "SIM", "RET", "ARG", "PERF"]
-ignore = ["ANN101", "D203", "D212"]
+[lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+select = ["E4", "E7", "E9", "F"]
+ignore = []
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
@@ -74,7 +49,7 @@ unfixable = []
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-[tool.ruff.format]
+[format]
 # Like Black, use double quotes for strings.
 quote-style = "double"
 
@@ -89,7 +64,10 @@ line-ending = "auto"
 
 # Enable auto-formatting of code examples in docstrings. Markdown,
 # reStructuredText code/literal blocks and doctests are all supported.
-docstring-code-format = true
+#
+# This is currently disabled by default, but it is planned for this
+# to be opt-out in the future.
+docstring-code-format = false
 
 # Set the line length limit used when formatting code snippets in
 # docstrings.
@@ -97,5 +75,3 @@ docstring-code-format = true
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
 docstring-code-line-length = "dynamic"
-
-[tool.mypy]

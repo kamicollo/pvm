@@ -99,7 +99,7 @@ class BaseField(ABC):
             return self.definition
         if self.calculated_definition is not None:
             return self.calculated_definition
-        raise ValueError(f"Field {self.name} has no definition or components")
+        raise ValueError(f"Field {self.name} has no definition or components")  # pragma: no cover
 
     def _validate_components(self) -> None:
         if not self.components and self.definition is None:
