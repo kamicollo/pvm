@@ -7,7 +7,7 @@ from typing import Self
 
 import ibis
 
-from pvm.fields import Field, QuantityField, RateField
+from pvm.fields import Field
 from pvm.formulas import derive_effect_fields
 
 
@@ -102,16 +102,6 @@ class PVM:
         self.hierarchy = hierarchy
         return self
 
-    def get_graph_components(self) -> list[RateField | QuantityField | Field]:
-        """
-        Retrieve a flattened list of graph components.
-
-        Returns:
-            list[RateField | QuantityField | Field]: A list of graph components.
-
-        """
-        return self.flattened_list
-
     def aggregate(self) -> ibis.Table:
         """
         Aggregate the data based on the specified period and hierarchy.
@@ -124,6 +114,8 @@ class PVM:
             ibis.Table: The aggregated and pivoted table.
 
         """
+        if self.data is None:
+            raise ValueError("Data source is not set")
         if self.aggregated is None:
             self.aggregated = (
                 self.data.filter(self.period_expression.isin(list(self.period_order)))

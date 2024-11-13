@@ -80,9 +80,9 @@ class BaseField(ABC):
             Deferred | None: Ibis expression representing the calculated definition
 
         """
-        if self.components:
-            return (self.rate.definition * self.quantity.definition) + sum(
-                [c.definition for c in self.other_components],
+        if self.rate and self.quantity:
+            return (self.rate.formula * self.quantity.formula) + sum(
+                [c.formula for c in self.other_components],
             )
         return None
 
@@ -97,7 +97,9 @@ class BaseField(ABC):
         """
         if self.definition is not None:
             return self.definition
-        return self.calculated_definition
+        if self.calculated_definition is not None:
+            return self.calculated_definition
+        raise ValueError(f"Field {self.name} has no definition or components")
 
     def _validate_components(self) -> None:
         if not self.components and self.definition is None:
@@ -120,17 +122,17 @@ class BaseField(ABC):
     def __post_init__(self) -> None:
         """Validate the field configuration and adds reconciliation field if necessary."""
         self._validate_components()
-        if self.components and self.definition is not None:
-            self._add_reconciliation_field()
+        self._add_reconciliation_field()
 
     def _add_reconciliation_field(self) -> None:
         """Add a reconciliation field to the field if it has components and a definition."""
-        self.components.append(
-            Field(
-                name=self.name + "_rec",
-                definition=((self.definition) - self.calculated_definition),
-            ),
-        )
+        if self.rate and self.quantity and self.definition is not None:
+            self.components.append(
+                Field(
+                    name=self.name + "_rec",
+                    definition=((self.definition) - self.calculated_definition),
+                ),
+            )
 
     def get_flattened_graph(self) -> list[BaseField]:
         """
