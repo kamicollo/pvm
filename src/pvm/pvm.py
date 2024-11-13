@@ -1,7 +1,9 @@
 from enum import Enum
-import ibis
-from .fields import Field, BaseField
 from typing import Self
+
+import ibis
+
+from .fields import BaseField, Field
 from .formulas import derive_effect_fields
 
 
@@ -69,5 +71,7 @@ class PVM:
         for period_start, period_end in zip(
             self.period_order[:-1], self.period_order[1:]
         ):
+            t = t.mutate(derive_effect_fields(self.graph, period_start, period_end))
+        return t
             t = t.mutate(derive_effect_fields(self.graph, period_start, period_end))
         return t

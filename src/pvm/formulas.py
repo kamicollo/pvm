@@ -1,5 +1,5 @@
-from ibis import deferred as col
 import ibis
+from ibis import deferred as col
 
 
 def derive_effect_fields(

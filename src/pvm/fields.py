@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import dataclasses
 from abc import ABC
 from typing import List, Literal
+
 from ibis import Deferred
 
 # Define the literal type for field types
@@ -100,5 +102,9 @@ class RateField(BaseField):
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
+class QuantityField(BaseField):
+    type: FieldType = "quantity"
+
+
 class QuantityField(BaseField):
     type: FieldType = "quantity"
