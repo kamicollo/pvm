@@ -7,6 +7,8 @@ test:
 
 test_cov:
 	pytest --cov=pvm --cov-report=html tests
+	
+show_coverage:
 	python -m http.server 8000 --directory htmlcov
 
 install_hooks:
