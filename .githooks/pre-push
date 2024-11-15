@@ -1,0 +1,23 @@
+#!/bin/bash
+
+echo "Running pre-commit checks..."
+
+source .venv/bin/activate
+
+# Run tests
+echo "Running tests..."
+make test
+if [ $? -ne 0 ]; then
+    echo "Tests failed. Commit aborted."
+    exit 1
+fi
+
+# Run linting
+echo "Running linting..."
+make lint
+if [ $? -ne 0 ]; then
+    echo "Linting failed. Commit aborted."
+    exit 1
+fi
+
+exit 0

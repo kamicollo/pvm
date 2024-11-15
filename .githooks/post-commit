@@ -1,0 +1,5 @@
+#!/bin/bash
+
+echo "Running post-commit coverage analysis..."
+source .venv/bin/activate
+make test_cov
