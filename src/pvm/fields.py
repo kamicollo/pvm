@@ -9,7 +9,7 @@ from typing import Literal
 from ibis import Deferred
 
 # Define the literal type for field types
-FieldType = Literal["simple", "rate", "quantity"]
+FieldType = Literal["simple", "rate", "quantity", "reconciliation"]
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -72,6 +72,20 @@ class BaseField(ABC):
         return next(iter(self._quantity_components), None)
 
     @property
+    def reconciliation_field(self) -> ReconciliationField | None:
+        """
+        Retrieves the reconciliation field of the field.
+
+        Returns:
+            Field | None: Reconciliation field of the field
+
+        """
+        return next(
+            (c for c in self.components if isinstance(c, ReconciliationField)),
+            None,
+        )
+
+    @property
     def calculated_definition(self) -> Deferred | None:
         """
         Returns the calculated definition derived from the components.
@@ -128,7 +142,7 @@ class BaseField(ABC):
         """Add a reconciliation field to the field if it has components and a definition."""
         if self.rate and self.quantity and self.definition is not None:
             self.components.append(
-                Field(
+                ReconciliationField(
                     name=self.name + "_rec",
                     definition=((self.definition) - self.calculated_definition),
                 ),
@@ -156,6 +170,13 @@ class Field(BaseField):
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
+class ReconciliationField(Field):
+    """Field class for reconciliation fields."""
+
+    type: FieldType = "reconciliation"
+
+
+@dataclasses.dataclass(frozen=True, eq=True)
 class RateField(BaseField):
     """Field class for rate fields."""
 
@@ -167,3 +188,33 @@ class QuantityField(BaseField):
     """Field class for quantity fields."""
 
     type: FieldType = "quantity"
+
+
+@dataclasses.dataclass(frozen=True, eq=True)
+class CompositeRateField(RateField):
+    """A field that combines multiple rate components."""
+
+    @property
+    def rate(self) -> None:
+        """CompositeRateField does not have a single rate component."""
+        return None
+
+    @property
+    def rates(self) -> list[RateField]:
+        """List of rate components."""
+        return self.components  # type: ignore
+
+    def _validate_components(self) -> None:
+        if not self.components:
+            raise ValueError(f"CompositeRateField '{self.name}' must have at least one rate component")
+
+        if self.definition is not None:
+            raise ValueError(f"CompositeRateField '{self.name}' cannot have a direct definition")
+
+        if not all(isinstance(c, RateField) for c in self.components):
+            raise ValueError(f"CompositeRateField '{self.name}' can only have RateField components")
+
+    @property
+    def calculated_definition(self) -> Deferred:
+        """Sum of all rate components."""
+        return sum(c.formula for c in self.components)  # type: ignore

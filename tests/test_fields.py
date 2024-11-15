@@ -4,7 +4,7 @@ import polars
 import pytest
 from ibis import deferred
 from polars.testing import assert_frame_equal
-from pvm.fields import Field, QuantityField, RateField
+from pvm.fields import CompositeRateField, Field, QuantityField, RateField
 
 
 def test_field_creation():
@@ -55,6 +55,30 @@ def test_reconciliation_field():
     quantity = QuantityField(name="qty", definition=deferred)
     field = Field(name="total", definition=deferred, components=[rate, quantity])
     assert any(c.name == "total_rec" for c in field.components)
+    assert field.reconciliation_field is not None
+
+
+def test_reconciliation_calculation_correctness():
+    rate = RateField(name="rate", definition=deferred.rate)
+    quantity = QuantityField(name="qty", definition=deferred.qty)
+    field = Field(name="total", definition=deferred.total, components=[rate, quantity])
+
+    df = polars.DataFrame({"rate": [1], "qty": [3], "total": [4]}).with_columns(
+        (polars.col("total") - (polars.col("rate") * polars.col("qty"))).alias(
+            "total_rec"
+        )
+    )
+
+    con = ibis.polars.connect(tables={"df": df})
+    t = con.table("df")
+
+    # Verify reconciliation field returns correct values
+    assert_frame_equal(
+        t.select(
+            field.reconciliation_field.formula.name(field.reconciliation_field.name)
+        ).to_polars(),
+        df.select("total_rec"),
+    )
 
 
 def test_nested_flattened_graph():
@@ -139,3 +163,106 @@ def test_formula_correctness():
     assert_frame_equal(
         t.select(field.formula.name("test")).to_polars(), df.select("test")
     )
+
+
+def test_formula_correctness_with_other_field():
+    # Create field with both types of definitions
+    rate = RateField(name="rate2", definition=deferred.z)
+    qty = QuantityField(name="qty2", definition=deferred.y)
+    other = Field(name="other", definition=deferred.o)
+    field = Field(name="test", components=[rate, qty, other])
+
+    df = polars.DataFrame({"x": [1], "y": [3], "z": [5], "o": 7}).with_columns(
+        (polars.col("y") * polars.col("z") + polars.col("o")).alias("test")
+    )
+    con = ibis.polars.connect(tables={"df": df})
+    t = con.table("df")
+
+    # Verify formula returns correct values
+    assert_frame_equal(
+        t.select(field.formula.name("test")).to_polars(), df.select("test")
+    )
+
+
+def test_formula_correctness_with_multiple_other_field():
+    # Create field with both types of definitions
+    rate = RateField(name="rate2", definition=deferred.z)
+    qty = QuantityField(name="qty2", definition=deferred.y)
+    other = Field(name="other", definition=deferred.o)
+    other2 = Field(name="other", definition=deferred.o2)
+    field = Field(name="test", components=[rate, qty, other, other2])
+
+    df = polars.DataFrame(
+        {"x": [1], "y": [3], "z": [5], "o": 7, "o2": 10}
+    ).with_columns(
+        (polars.col("y") * polars.col("z") + polars.col("o") + polars.col("o2")).alias(
+            "test"
+        )
+    )
+    con = ibis.polars.connect(tables={"df": df})
+    t = con.table("df")
+
+    # Verify formula returns correct values
+    assert_frame_equal(
+        t.select(field.formula.name("test")).to_polars(), df.select("test")
+    )
+
+
+def test_composite_rate_field_creation():
+    rate1 = RateField(name="rate1", definition=deferred.r1)
+    rate2 = RateField(name="rate2", definition=deferred.r2)
+    composite = CompositeRateField(name="composite", components=[rate1, rate2])
+
+    assert composite.name == "composite"
+    assert composite.type == "rate"
+    assert len(composite.components) == 2
+    assert all(isinstance(c, RateField) for c in composite.components)
+
+
+def test_composite_rate_field_validation_errors():
+    rate = RateField(name="rate", definition=deferred.r)
+    qty = QuantityField(name="qty", definition=deferred.q)
+
+    # Test empty components
+    with pytest.raises(ValueError, match="must have at least one rate component"):
+        CompositeRateField(name="test", components=[])
+
+    # Test non-RateField component
+    with pytest.raises(ValueError, match="can only have RateField components"):
+        CompositeRateField(name="test", components=[rate, qty])
+
+    # Test direct definition
+    with pytest.raises(ValueError, match="cannot have a direct definition"):
+        CompositeRateField(name="test", components=[rate], definition=deferred.x)
+
+
+def test_composite_rate_calculated_definition():
+    rate1 = RateField(name="rate1", definition=deferred.r1)
+    rate2 = RateField(name="rate2", definition=deferred.r2)
+    composite = CompositeRateField(name="composite", components=[rate1, rate2])
+
+    df = polars.DataFrame({"r1": [1], "r2": [2]})
+    con = ibis.polars.connect(tables={"df": df})
+    t = con.table("df")
+
+    result = t.select(composite.formula.name("result")).to_polars()
+
+    expected = polars.DataFrame({"result": [3]})
+    assert_frame_equal(result, expected)
+
+
+def test_composite_rate_field_properties():
+    # Setup test components
+    rate1 = RateField(name="rate1", definition=deferred.r1)
+    rate2 = RateField(name="rate2", definition=deferred.r2)
+    composite = CompositeRateField(name="composite", components=[rate1, rate2])
+
+    # Test rate property returns None
+    assert composite.rate is None
+
+    # Test rates property returns correct components
+    assert len(composite.rates) == 2
+    assert isinstance(composite.rates, list)
+    assert all(isinstance(r, RateField) for r in composite.rates)
+    assert rate1 in composite.rates
+    assert rate2 in composite.rates
