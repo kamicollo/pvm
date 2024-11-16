@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "altair>=5.4.1",
     "gcsfs>=2024.10.0",
-    "ibis-framework[duckdb,polars,snowflake,sqlite]>=9.5.0",
+    "ibis-framework[duckdb,examples,polars,snowflake,sqlite,visualization]>=9.5.0",
     "ipykernel>=6.29.5",
     "jupyterlab>=4.3.0",
     "mypy>=1.13.0",

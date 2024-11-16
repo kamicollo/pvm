@@ -903,6 +903,15 @@ wheels = [
 ]
 
 [[package]]
+name = "graphviz"
+version = "0.20.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fa/83/5a40d19b8347f017e417710907f824915fba411a9befd092e52746b63e9f/graphviz-0.20.3.zip", hash = "sha256:09d6bc81e6a9fa392e7ba52135a9d49f1ed62526f96499325930e87ca1b5925d", size = 256455 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/00/be/d59db2d1d52697c6adc9eacaf50e8965b6345cc143f671e1ed068818d5cf/graphviz-0.20.3-py3-none-any.whl", hash = "sha256:81f848f2904515d8cd359cc611faba817598d2feaac4027b266aa3eda7b3dde5", size = 47126 },
+]
+
+[[package]]
 name = "h11"
 version = "0.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -977,6 +986,9 @@ duckdb = [
     { name = "pyarrow-hotfix" },
     { name = "rich" },
 ]
+examples = [
+    { name = "pins", extra = ["gcs"] },
+]
 polars = [
     { name = "numpy" },
     { name = "packaging" },
@@ -1001,6 +1013,9 @@ sqlite = [
     { name = "pyarrow-hotfix" },
     { name = "regex" },
     { name = "rich" },
+]
+visualization = [
+    { name = "graphviz" },
 ]
 
 [[package]]
@@ -1844,6 +1859,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/aa/780696e3252b1ec3e9a29ee8f9419167da0b0fd32f3f68293e0f3f55f7b0/pins-0.8.6-py2.py3-none-any.whl", hash = "sha256:6ef17c0b617f93d7a4ab3ecb0e9d2ccc0fa9f1a7e26e8a2be3f43f2778567c9a", size = 114209 },
 ]
 
+[package.optional-dependencies]
+gcs = [
+    { name = "gcsfs" },
+]
+
 [[package]]
 name = "platformdirs"
 version = "4.3.6"
@@ -2037,7 +2057,7 @@ source = { editable = "." }
 dependencies = [
     { name = "altair" },
     { name = "gcsfs" },
-    { name = "ibis-framework", extra = ["duckdb", "polars", "snowflake", "sqlite"] },
+    { name = "ibis-framework", extra = ["duckdb", "examples", "polars", "snowflake", "sqlite", "visualization"] },
     { name = "ipykernel" },
     { name = "jupyterlab" },
     { name = "mypy" },
@@ -2052,7 +2072,7 @@ dependencies = [
 requires-dist = [
     { name = "altair", specifier = ">=5.4.1" },
     { name = "gcsfs", specifier = ">=2024.10.0" },
-    { name = "ibis-framework", extras = ["duckdb", "polars", "snowflake", "sqlite"], specifier = ">=9.5.0" },
+    { name = "ibis-framework", extras = ["duckdb", "examples", "polars", "snowflake", "sqlite", "visualization"], specifier = ">=9.5.0" },
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "jupyterlab", specifier = ">=4.3.0" },
     { name = "mypy", specifier = ">=1.13.0" },
