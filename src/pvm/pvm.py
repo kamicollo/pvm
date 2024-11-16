@@ -26,23 +26,30 @@ class PVM:
     method: CalculationMethod
     hierarchy: list[ibis.Expr]
     aggregated: ibis.Table | None
+    data: ibis.Table | None
+    period_expression: ibis.Expr | None
+    period_order: list[str] | None
+    graph: Field | None
+    hierarchy: list[ibis.Expr]
 
     def __init__(
         self,
         method_to_use: CalculationMethod = CalculationMethod.CLASSIC,
+        data: ibis.Table | None = None,
     ) -> None:
         """
         Initialize the PVM class.
 
         Args:
             method_to_use (CalculationMethod, optional): The calculation method to use.
-            Defaults to CalculationMethod.CLASSIC.
+                Defaults to CalculationMethod.CLASSIC.
+            data (ibis.Table | None, optional): The data source. Defaults to None.
 
         """
         self.method = method_to_use
         self.hierarchy = []
         self.aggregated = None
-        self.data = None
+        self.data = data
 
     def set_data(self, table: ibis.Table) -> Self:
         """
@@ -123,13 +130,6 @@ class PVM:
                 .aggregate(
                     [f.formula.name(f.name) for f in self.graph.get_flattened_graph()],
                 )
-                .pivot_wider(
-                    names=self.period_order,
-                    names_from=["period"],
-                    values_from=[f.name for f in self.graph.get_flattened_graph()],
-                    values_agg="sum",
-                    values_fill=0,
-                )
             )
         return self.aggregated
 
@@ -144,7 +144,13 @@ class PVM:
             ibis.Table: The table with the calculated effects.
 
         """
-        t = self.aggregate()
+        t = self.aggregate().pivot_wider(
+            names=self.period_order,
+            names_from=["period"],
+            values_from=[f.name for f in self.graph.get_flattened_graph()],
+            values_agg="sum",
+            values_fill=0,
+        )
         for period_start, period_end in zip(
             self.period_order[:-1],
             self.period_order[1:],

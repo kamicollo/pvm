@@ -1,0 +1,117 @@
+import ibis
+import polars as pl
+from polars.testing import assert_frame_equal
+from pvm.fields import Field, QuantityField, RateField
+from pvm.pvm import PVM
+
+
+def test_pvm_basic_initialization():
+    df = pl.DataFrame({"rate": [10, 12], "qty": [100, 120], "period": ["2023", "2024"]})
+
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+
+    pvm = PVM().set_data(t)
+
+    assert pvm.data == t
+    assert pvm.hierarchy == []
+    assert pvm.aggregated is None
+
+
+def test_pvm_setter_methods():
+    df = pl.DataFrame({"rate": [10, 12], "qty": [100, 120], "period": ["2023", "2024"]})
+
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+
+    # Create components
+    rate = RateField(name="rate", definition=ibis.deferred.rate)
+    qty = QuantityField(name="qty", definition=ibis.deferred.qty)
+    field = Field(name="total", components=[rate, qty])
+
+    # Test method chaining
+    pvm = (
+        PVM()
+        .set_data(t)
+        .set_graph(field)
+        .set_periods(ibis.deferred.period, ["2023", "2024"])
+    )
+
+    assert pvm.period_expression.resolve(t).to_polars().name == "period"
+    assert pvm.period_order == ["2023", "2024"]
+    assert pvm.graph == field
+
+
+def test_pvm_with_hierarchy():
+    df = pl.DataFrame(
+        {
+            "rate": [10, 12, 15, 18],
+            "qty": [100, 120, 150, 180],
+            "period": ["2023", "2024", "2023", "2024"],
+            "region": ["NA", "NA", "EU", "EU"],
+        }
+    )
+
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+
+    rate = RateField(
+        name="rate",
+        definition=(ibis.deferred.qty * ibis.deferred.rate).sum()
+        / ibis.deferred.qty.sum(),
+    )
+    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
+    field = Field(name="revenue", components=[rate, qty])
+
+    pvm = (
+        PVM()
+        .set_data(t)
+        .set_graph(field)
+        .set_periods(ibis.deferred.period, ["2023", "2024"])
+        .set_hierarchy([ibis.deferred.region])
+    )
+
+    result = pvm.aggregate().to_polars()
+
+    assert_frame_equal(
+        result,
+        df.group_by(["region", "period"])
+        .agg(
+            [
+                pl.col("qty").sum(),
+                (pl.col("rate") * pl.col("qty")).sum().alias("revenue"),
+            ]
+        )
+        .with_columns((pl.col("revenue") / pl.col("qty")).alias("rate")),
+        check_column_order=False,
+        check_row_order=False,
+        check_dtypes=False,
+    )
+
+
+def test_pvm_aggregation():
+    df = pl.DataFrame({"rate": [10, 12], "qty": [100, 120], "period": ["2023", "2024"]})
+
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+
+    rate = RateField(name="rate", definition=ibis.deferred.rate.sum())
+    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
+    field = Field(name="total", components=[rate, qty])
+
+    pvm = (
+        PVM()
+        .set_data(t)
+        .set_graph(field)
+        .set_periods(ibis.deferred.period, ["2023", "2024"])
+    )
+
+    result = pvm.aggregate().to_polars()
+
+    assert_frame_equal(
+        result,
+        df.with_columns((pl.col("qty") * pl.col("rate")).alias("total")),
+        check_column_order=False,
+        check_row_order=False,
+        check_dtypes=False,
+    )
