@@ -13,6 +13,7 @@ dependencies = [
     "mypy>=1.13.0",
     "pins>=0.8.6",
     "polars>=1.12.0",
+    "pyright>=1.1.389",
     "pytest-cov>=6.0.0",
     "pytest>=8.3.3",
     "ruff>=0.7.3",
@@ -98,4 +99,11 @@ docstring-code-format = true
 # enabled.
 docstring-code-line-length = "dynamic"
 
-[tool.mypy]
+[tool.pyright]
+include = ["src"]
+exclude = ["**/node_modules",
+    "**/__pycache__",
+    "src/experimental",
+    "src/typestubs"
+]
+ignore = ["src/charts.py", "src/calculations.py", "src/formulas.py", "tests"]
