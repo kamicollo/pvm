@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from functools import cached_property
 from typing import Self
 
 import ibis
@@ -24,13 +25,11 @@ class PVM:
     """PVM class."""
 
     method: CalculationMethod
-    hierarchy: list[ibis.Expr]
-    aggregated: ibis.Table | None
+    hierarchy: list[ibis.Deferred]
     data: ibis.Table | None
-    period_expression: ibis.Expr | None
+    period_expression: ibis.Deferred | None
     period_order: list[str] | None
     graph: Field | None
-    hierarchy: list[ibis.Expr]
 
     def __init__(
         self,
@@ -48,7 +47,6 @@ class PVM:
         """
         self.method = method_to_use
         self.hierarchy = []
-        self.aggregated = None
         self.data = data
 
     def set_data(self, table: ibis.Table) -> Self:
@@ -63,6 +61,7 @@ class PVM:
 
         """
         self.data = table
+        del self.aggregated
         return self
 
     def set_graph(self, graph: Field) -> Self:
@@ -77,9 +76,10 @@ class PVM:
 
         """
         self.graph = graph
+        del self.aggregated
         return self
 
-    def set_periods(self, definition: ibis.Expr, order: list[str]) -> Self:
+    def set_periods(self, definition: ibis.Deferred, order: list[str]) -> Self:
         """
         Set the period field definition and period order for the instance.
 
@@ -93,9 +93,10 @@ class PVM:
         """
         self.period_expression = definition
         self.period_order = order
+        del self.aggregated
         return self
 
-    def set_hierarchy(self, hierarchy: list[ibis.Expr]) -> Self:
+    def set_hierarchy(self, hierarchy: list[ibis.Deferred]) -> Self:
         """
         Set the dimension hierarchy for the current instance.
 
@@ -107,9 +108,11 @@ class PVM:
 
         """
         self.hierarchy = hierarchy
+        del self.aggregated
         return self
 
-    def aggregate(self) -> ibis.Table:
+    @cached_property
+    def aggregated(self) -> ibis.Table:
         """
         Aggregate the data based on the specified period and hierarchy.
 
@@ -123,15 +126,22 @@ class PVM:
         """
         if self.data is None:
             raise ValueError("Data source is not set")
-        if self.aggregated is None:
-            self.aggregated = (
-                self.data.filter(self.period_expression.isin(list(self.period_order)))
-                .group_by(self.hierarchy + [self.period_expression.name("period")])
-                .aggregate(
-                    [f.formula.name(f.name) for f in self.graph.get_flattened_graph()],
-                )
+        if self.period_expression is None:
+            raise ValueError("Period expression is not set")
+        if self.period_order is None:
+            raise ValueError("Period order is not set")
+        if self.graph is None:
+            raise ValueError("Calculation graph is not set")
+
+        period_filter = self.period_expression.isin(list(self.period_order))
+        group_by_fields = self.hierarchy + [self.period_expression.name("period")]
+        return (
+            self.data.filter(period_filter)  # type: ignore
+            .group_by(group_by_fields)  # type: ignore
+            .aggregate(
+                [f.formula.name(f.name) for f in self.graph.get_flattened_graph()],
             )
-        return self.aggregated
+        )
 
     def calculate_effects(self) -> ibis.Table:
         """
@@ -144,7 +154,15 @@ class PVM:
             ibis.Table: The table with the calculated effects.
 
         """
-        t = self.aggregate().pivot_wider(
+        if self.data is None:
+            raise ValueError("Data source is not set")
+        if self.period_expression is None:
+            raise ValueError("Period expression is not set")
+        if self.period_order is None:
+            raise ValueError("Period order is not set")
+        if self.graph is None:
+            raise ValueError("Calculation graph is not set")
+        t = self.aggregated.pivot_wider(
             names=self.period_order,
             names_from=["period"],
             values_from=[f.name for f in self.graph.get_flattened_graph()],
@@ -156,5 +174,6 @@ class PVM:
             self.period_order[1:],
             strict=False,
         ):
-            t = t.mutate(derive_effect_fields(self.graph, period_start, period_end))
+            effect_fields = derive_effect_fields(self.graph, period_start, period_end)
+            t = t.mutate(effect_fields)  # type: ignore
         return t
