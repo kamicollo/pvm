@@ -15,7 +15,6 @@ def test_pvm_basic_initialization():
 
     assert pvm.data == t
     assert pvm.hierarchy == []
-    assert pvm.aggregated is None
 
 
 def test_pvm_setter_methods():
@@ -71,7 +70,7 @@ def test_pvm_with_hierarchy():
         .set_hierarchy([ibis.deferred.region])
     )
 
-    result = pvm.aggregate().to_polars()
+    result = pvm.aggregated.to_polars()
 
     assert_frame_equal(
         result,
@@ -106,7 +105,7 @@ def test_pvm_aggregation():
         .set_periods(ibis.deferred.period, ["2023", "2024"])
     )
 
-    result = pvm.aggregate().to_polars()
+    result = pvm.aggregated.to_polars()
 
     assert_frame_equal(
         result,

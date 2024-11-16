@@ -48,6 +48,9 @@ class PVM:
         self.method = method_to_use
         self.hierarchy = []
         self.data = data
+        self.period_expression = None
+        self.period_order = None
+        self.graph = None
 
     def set_data(self, table: ibis.Table) -> Self:
         """
@@ -61,7 +64,7 @@ class PVM:
 
         """
         self.data = table
-        del self.aggregated
+        self.reset_aggregated()
         return self
 
     def set_graph(self, graph: Field) -> Self:
@@ -76,7 +79,7 @@ class PVM:
 
         """
         self.graph = graph
-        del self.aggregated
+        self.reset_aggregated()
         return self
 
     def set_periods(self, definition: ibis.Deferred, order: list[str]) -> Self:
@@ -93,7 +96,7 @@ class PVM:
         """
         self.period_expression = definition
         self.period_order = order
-        del self.aggregated
+        self.reset_aggregated()
         return self
 
     def set_hierarchy(self, hierarchy: list[ibis.Deferred]) -> Self:
@@ -108,7 +111,7 @@ class PVM:
 
         """
         self.hierarchy = hierarchy
-        del self.aggregated
+        self.reset_aggregated()
         return self
 
     @cached_property
@@ -142,6 +145,11 @@ class PVM:
                 [f.formula.name(f.name) for f in self.graph.get_flattened_graph()],
             )
         )
+
+    def reset_aggregated(self) -> None:
+        """Reset the aggregated table."""
+        if self.__dict__.get("aggregated"):
+            del self.aggregated
 
     def calculate_effects(self) -> ibis.Table:
         """
