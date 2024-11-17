@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import MutableSequence
 from typing import Literal
 
 from ibis import Deferred
@@ -149,7 +149,7 @@ class BaseField(ABC):
                 ),
             )
 
-    def get_flattened_graph(self) -> Sequence[RateField | Field | QuantityField]:
+    def get_flattened_graph(self) -> MutableSequence[RateField | Field | QuantityField]:
         """
         Get a flattened graph of the field and its components.
 
@@ -157,7 +157,7 @@ class BaseField(ABC):
             list[BaseField]: List of fields in the graph
 
         """
-        flat_graph: Sequence = [self]
+        flat_graph: MutableSequence = [self]
         for component in self.components:
             flat_graph.extend(component.get_flattened_graph())
         return flat_graph
