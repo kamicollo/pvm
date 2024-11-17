@@ -53,9 +53,56 @@ def test_quantity_without_rate():
 def test_reconciliation_field():
     rate = RateField(name="rate", definition=deferred)
     quantity = QuantityField(name="qty", definition=deferred)
-    field = Field(name="total", definition=deferred, components=[rate, quantity])
+    field = Field(
+        name="total", definition=deferred, components=[rate, quantity], reconcile=True
+    )
     assert any(c.name == "total_rec" for c in field.components)
     assert field.reconciliation_field is not None
+
+
+def test_field_reconcile_default():
+    field = Field(name="test", definition=deferred)
+    assert field.reconcile is True  # Default should be True
+
+
+def test_field_no_reconciliation():
+    rate = RateField(name="rate", definition=deferred)
+    quantity = QuantityField(name="qty", definition=deferred)
+    field = Field(
+        name="total", definition=deferred, components=[rate, quantity], reconcile=False
+    )
+
+    assert field.reconciliation_field is None
+
+
+def test_rate_quantity_field_reconcile_defaults():
+    rate = RateField(name="rate", definition=deferred)
+    quantity = QuantityField(name="qty", definition=deferred)
+
+    assert rate.reconcile is False
+    assert quantity.reconcile is False
+
+
+def test_reconciliation_with_explicit_reconcile():
+    rate = RateField(name="rate", definition=deferred.rate)
+    quantity = QuantityField(name="qty", definition=deferred.qty)
+    field = Field(
+        name="total",
+        definition=deferred.total,
+        components=[rate, quantity],
+        reconcile=False,
+    )
+
+    df = polars.DataFrame({"rate": [1], "qty": [3], "total": [4]})
+
+    con = ibis.polars.connect(tables={"df": df})
+    t = con.table("df")
+
+    assert_frame_equal(
+        t.select([f.formula for f in field.get_flattened_graph()]).to_polars(),
+        df,
+        check_column_order=False,
+    )
 
 
 def test_reconciliation_calculation_correctness():
