@@ -142,7 +142,7 @@ class BaseField(ABC):
 
     def _add_reconciliation_field(self) -> None:
         """Add a reconciliation field to the field if it has components and a definition."""
-        if self.rate and self.quantity and self.definition is not None:
+        if self.rate and self.quantity and self.definition is not None and self.reconcile:
             self.components.append(
                 ReconciliationField(
                     name=self.name + "_rec",
