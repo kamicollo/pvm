@@ -148,7 +148,7 @@ class PVM:
 
     def reset_aggregated(self) -> None:
         """Reset the aggregated table."""
-        if self.__dict__.get("aggregated"):
+        if self.__dict__.get("aggregated") is not None:
             del self.aggregated
 
     def calculate_effects(self) -> ibis.Table:
