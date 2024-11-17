@@ -28,6 +28,7 @@ class BaseField(ABC):
 
     name: str
     type: FieldType
+    reconcile: bool
     components: list[Field | RateField | QuantityField] = dataclasses.field(default_factory=list, compare=False)
     definition: Deferred | None = None
 
@@ -168,6 +169,7 @@ class Field(BaseField):
     """Field class for simple fields."""
 
     type: FieldType = "simple"
+    reconcile: bool = True
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -175,6 +177,7 @@ class ReconciliationField(Field):
     """Field class for reconciliation fields."""
 
     type: FieldType = "reconciliation"
+    reconcile: bool = False
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -182,6 +185,7 @@ class RateField(BaseField):
     """Field class for rate fields."""
 
     type: FieldType = "rate"
+    reconcile: bool = False
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -189,6 +193,7 @@ class QuantityField(BaseField):
     """Field class for quantity fields."""
 
     type: FieldType = "quantity"
+    reconcile: bool = False
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
