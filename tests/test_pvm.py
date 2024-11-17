@@ -114,3 +114,98 @@ def test_pvm_aggregation():
         check_row_order=False,
         check_dtypes=False,
     )
+
+
+def test_pvm_aggregation_with_reconciliation_field():
+    df = pl.DataFrame(
+        {
+            "rate": [10, 12],
+            "qty": [100, 120],
+            "total": [1000, 1440],
+            "period": ["2023", "2024"],
+        }
+    )
+
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+
+    rate = RateField(name="rate", definition=ibis.deferred.rate.sum())
+    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
+    field = Field(
+        name="total", definition=ibis.deferred.total.sum(), components=[rate, qty]
+    )
+
+    pvm = (
+        PVM()
+        .set_data(t)
+        .set_graph(field)
+        .set_periods(ibis.deferred.period, ["2023", "2024"])
+    )
+
+    result = pvm.aggregated.to_polars()
+
+    assert_frame_equal(
+        result,
+        df.with_columns(
+            (pl.col("total") - pl.col("qty") * pl.col("rate")).alias("total_rec"),
+        ),
+        check_column_order=False,
+        check_row_order=False,
+        check_dtypes=False,
+    )
+
+
+def test_pvm_aggregation_with_reconciliation_difference():
+    df = pl.DataFrame(
+        {
+            "rate": [10, 12],
+            "qty": [100, 120],
+            "total": [900, 1540],
+            "period": ["2023", "2024"],
+        }
+    )
+
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+
+    rate = RateField(name="rate", definition=ibis.deferred.rate.sum())
+    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
+    field = Field(
+        name="total", definition=ibis.deferred.total.sum(), components=[rate, qty]
+    )
+
+    pvm = (
+        PVM()
+        .set_data(t)
+        .set_graph(field)
+        .set_periods(ibis.deferred.period, ["2023", "2024"])
+    )
+
+    result = pvm.aggregated.to_polars()
+
+    assert_frame_equal(
+        result,
+        df.with_columns(
+            (pl.col("total") - pl.col("qty") * pl.col("rate")).alias("total_rec"),
+        ),
+        check_column_order=False,
+        check_row_order=False,
+        check_dtypes=False,
+    )
+
+
+def test_pvm_set_periods():
+    df = pl.DataFrame({"rate": [10, 12], "qty": [100, 120], "period": [2023, 2024]})
+
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+
+    pvm = PVM().set_data(t)
+
+    # Test setting periods
+    pvm.set_periods(ibis.deferred.period, ["2023", "2024"])
+
+    assert pvm.period_order == ["2023", "2024"]
+
+    # Test period expression casting
+    assert pvm.period_expression.resolve(t).to_polars().dtype == pl.String

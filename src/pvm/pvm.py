@@ -94,7 +94,7 @@ class PVM:
             Self: The instance with updated period definition and order.
 
         """
-        self.period_expression = definition
+        self.period_expression = definition.cast(str)
         self.period_order = order
         self.reset_aggregated()
         return self
