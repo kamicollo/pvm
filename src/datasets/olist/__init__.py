@@ -1,5 +1,8 @@
-import polars as pl
+"""Olist dataset module."""
+
 import pathlib
+
+import polars as pl
 
 root_path = pathlib.Path(__file__).parent
 
@@ -10,7 +13,7 @@ order_items = pl.scan_parquet(root_path.joinpath("olist_order_items_dataset.parq
 orders = pl.scan_parquet(root_path.joinpath("olist_orders_dataset.parquet"))
 products = pl.scan_parquet(root_path.joinpath("olist_products_dataset.parquet"))
 product_categories = pl.scan_parquet(
-    root_path.joinpath("product_category_name_translation.parquet")
+    root_path.joinpath("product_category_name_translation.parquet"),
 )
 
 sales_data = (
@@ -32,7 +35,7 @@ sales_data = (
             "customer_state",
             "price",
             "freight_value",
-        ]
+        ],
     )
     .with_columns(
         pl.col("order_purchase_timestamp").str.to_datetime(),
@@ -46,8 +49,8 @@ sales_data = (
     )
     .with_columns(
         (pl.col("price") * pl.col("quantity") + pl.col("freight_value")).alias(
-            "revenue"
-        )
+            "revenue",
+        ),
     )
     .filter(pl.col("order_status") == "delivered")
     .filter(pl.col("year") > 2016)
