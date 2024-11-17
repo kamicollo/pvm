@@ -209,3 +209,44 @@ def test_pvm_set_periods():
 
     # Test period expression casting
     assert pvm.period_expression.resolve(t).to_polars().dtype == pl.String
+
+
+def test_pvm_aggregated_no_data():
+    pvm = PVM()
+    try:
+        pvm.aggregated
+    except ValueError as e:
+        assert str(e) == "Data source is not set"
+
+
+def test_pvm_aggregated_no_period_expression():
+    df = pl.DataFrame({"rate": [10, 12], "qty": [100, 120], "period": ["2023", "2024"]})
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+    pvm = PVM().set_data(t)
+    try:
+        pvm.aggregated
+    except ValueError as e:
+        assert str(e) == "Period expression is not set"
+
+
+def test_pvm_aggregated_no_period_order():
+    df = pl.DataFrame({"rate": [10, 12], "qty": [100, 120], "period": ["2023", "2024"]})
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+    pvm = PVM().set_data(t).set_periods(ibis.deferred.period, None)
+    try:
+        pvm.aggregated
+    except ValueError as e:
+        assert str(e) == "Period order is not set"
+
+
+def test_pvm_aggregated_no_graph():
+    df = pl.DataFrame({"rate": [10, 12], "qty": [100, 120], "period": ["2023", "2024"]})
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+    pvm = PVM().set_data(t).set_periods(ibis.deferred.period, ["2023", "2024"])
+    try:
+        pvm.aggregated
+    except ValueError as e:
+        assert str(e) == "Calculation graph is not set"
