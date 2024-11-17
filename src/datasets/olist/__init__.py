@@ -6,6 +6,8 @@ import polars as pl
 
 root_path = pathlib.Path(__file__).parent
 
+START_YEAR = 2016
+
 sellers = pl.scan_parquet(root_path.joinpath("olist_sellers_dataset.parquet"))
 customers = pl.scan_parquet(root_path.joinpath("olist_customers_dataset.parquet"))
 geolocation = pl.scan_parquet(root_path.joinpath("olist_geolocation_dataset.parquet"))
@@ -53,7 +55,7 @@ sales_data = (
         ),
     )
     .filter(pl.col("order_status") == "delivered")
-    .filter(pl.col("year") > 2016)
+    .filter(pl.col("year") > START_YEAR)
     .drop(["order_purchase_timestamp", "order_status"])
     .collect()
 )
