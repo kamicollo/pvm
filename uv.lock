@@ -657,6 +657,19 @@ wheels = [
 ]
 
 [[package]]
+name = "faker"
+version = "33.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "python-dateutil" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5b/c7/0782eb872b96ee571701237be0dd85aef3713a15045ba42752a8aac7c8ce/faker-33.0.0.tar.gz", hash = "sha256:9b01019c1ddaf2253ca2308c0472116e993f4ad8fc9905f82fa965e0c6f932e9", size = 1850076 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c0/c3/0451555e7a9a233bc17f128cff7654ec60036d4ccbb8397dd949f28df176/Faker-33.0.0-py3-none-any.whl", hash = "sha256:68e5580cb6b4226710886e595eabc13127149d6e71e9d1db65506a7fbe2c7fce", size = 1889118 },
+]
+
+[[package]]
 name = "fastjsonschema"
 version = "2.20.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2065,6 +2078,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "altair" },
+    { name = "faker" },
     { name = "gcsfs" },
     { name = "ibis-framework", extra = ["duckdb", "examples", "polars", "snowflake", "sqlite", "visualization"] },
     { name = "ipykernel" },
@@ -2081,6 +2095,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "altair", specifier = ">=5.4.1" },
+    { name = "faker", specifier = ">=33.0.0" },
     { name = "gcsfs", specifier = ">=2024.10.0" },
     { name = "ibis-framework", extras = ["duckdb", "examples", "polars", "snowflake", "sqlite", "visualization"], specifier = ">=9.5.0" },
     { name = "ipykernel", specifier = ">=6.29.5" },
