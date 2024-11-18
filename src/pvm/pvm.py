@@ -152,6 +152,24 @@ class PVM:
         if self.__dict__.get("aggregated") is not None:
             del self.aggregated
 
+    def get_wide_table(self) -> ibis.Table:
+        """
+        Get the wide table with the aggregated data.
+
+        Returns:
+            ibis.Table: The wide table.
+
+        """
+        if self.graph is None:
+            raise ValueError("Calculation graph is not set")
+        return self.aggregated.pivot_wider(
+            names=self.period_order,
+            names_from=[PERIOD_COLUMN],
+            values_from=[f.name for f in self.graph.get_flattened_graph()],
+            values_agg="sum",
+            values_fill=0,
+        )
+
     def calculate_effects(self) -> ibis.Table:
         """
         Calculate the effects over the specified periods.
@@ -163,21 +181,11 @@ class PVM:
             ibis.Table: The table with the calculated effects.
 
         """
-        if self.data is None:
-            raise ValueError("Data source is not set")
-        if self.period_expression is None:
-            raise ValueError("Period expression is not set")
-        if self.period_order is None:
-            raise ValueError("Period order is not set")
+        if not self.period_order or len(self.period_order) < 2:  # noqa: PLR2004
+            raise ValueError("Calculation requires at least two periods")
         if self.graph is None:
             raise ValueError("Calculation graph is not set")
-        t = self.aggregated.pivot_wider(
-            names=self.period_order,
-            names_from=[PERIOD_COLUMN],
-            values_from=[f.name for f in self.graph.get_flattened_graph()],
-            values_agg="sum",
-            values_fill=0,
-        )
+        t = self.get_wide_table()
         for period_start, period_end in zip(
             self.period_order[:-1],
             self.period_order[1:],

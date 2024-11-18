@@ -254,3 +254,120 @@ def test_pvm_aggregated_no_graph():
         pvm.aggregated
     except ValueError as e:
         assert str(e) == "Calculation graph is not set"
+
+
+def test_pvm_get_wide_table():
+    df = pl.DataFrame(
+        {
+            "rate": [10, 12, 15, 18],
+            "qty": [100, 120, 150, 180],
+            "period": ["2023", "2024", "2023", "2024"],
+            "region": ["NA", "NA", "EU", "EU"],
+        }
+    )
+
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+
+    rate = RateField(
+        name="rate",
+        definition=(ibis.deferred.qty * ibis.deferred.rate).sum()
+        / ibis.deferred.qty.sum(),
+    )
+    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
+    field = Field(name="revenue", components=[rate, qty])
+
+    pvm = (
+        PVM()
+        .set_data(t)
+        .set_graph(field)
+        .set_periods(ibis.deferred.period, ["2023", "2024"])
+        .set_hierarchy([ibis.deferred.region])
+    )
+
+    result = pvm.get_wide_table().to_polars()
+
+    expected = (
+        df.group_by(["region", "period"])
+        .agg(
+            [
+                pl.col("qty").sum(),
+                (pl.col("rate") * pl.col("qty")).sum().alias("revenue"),
+            ]
+        )
+        .with_columns((pl.col("revenue") / pl.col("qty")).alias("rate"))
+        .pivot(
+            values=["revenue", "rate", "qty"],
+            index="region",
+            columns="period",
+            aggregate_function="sum",
+        )
+        .fill_null(0)
+    )
+
+    assert_frame_equal(
+        result,
+        expected,
+        check_column_order=False,
+        check_row_order=False,
+        check_dtypes=False,
+    )
+
+
+def test_pvm_get_wide_table_one_column():
+    df = pl.DataFrame(
+        {
+            "qty": [100, 120, 150, 180],
+            "period": ["2023", "2024", "2023", "2024"],
+            "region": ["NA", "NA", "EU", "EU"],
+        }
+    )
+
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
+
+    pvm = (
+        PVM()
+        .set_data(t)
+        .set_graph(qty)
+        .set_periods(ibis.deferred.period, ["2023", "2024"])
+        .set_hierarchy([ibis.deferred.region])
+    )
+
+    result = pvm.get_wide_table().to_polars()
+
+    expected = (
+        df.group_by(["region", "period"])
+        .agg(
+            [
+                pl.col("qty").sum(),
+            ]
+        )
+        .pivot(
+            values=["qty"],
+            index="region",
+            columns="period",
+            aggregate_function="sum",
+        )
+        .fill_null(0)
+    )
+
+    assert_frame_equal(
+        result,
+        expected,
+        check_column_order=False,
+        check_row_order=False,
+        check_dtypes=False,
+    )
+
+
+def test_pvm_get_wide_table_no_graph():
+    df = pl.DataFrame({"rate": [10, 12], "qty": [100, 120], "period": ["2023", "2024"]})
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+    pvm = PVM().set_data(t).set_periods(ibis.deferred.period, ["2023", "2024"])
+    try:
+        pvm.get_wide_table()
+    except ValueError as e:
+        assert str(e) == "Calculation graph is not set"
