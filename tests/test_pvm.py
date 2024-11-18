@@ -371,3 +371,29 @@ def test_pvm_get_wide_table_no_graph():
         pvm.get_wide_table()
     except ValueError as e:
         assert str(e) == "Calculation graph is not set"
+
+
+def test_pvm_calculate_effects_no_period_order():
+    df = pl.DataFrame({"rate": [10, 12], "qty": [100, 120], "period": ["2023", "2024"]})
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+    pvm = (
+        PVM()
+        .set_data(t)
+        .set_graph(Field(name="total", definition=ibis.deferred.qty.sum()))
+    )
+    try:
+        pvm.calculate_effects()
+    except ValueError as e:
+        assert str(e) == "Calculation requires at least two periods"
+
+
+def test_pvm_calculate_effects_no_graph():
+    df = pl.DataFrame({"rate": [10, 12], "qty": [100, 120], "period": ["2023", "2024"]})
+    con = ibis.polars.connect({"df": df})
+    t = con.table("df")
+    pvm = PVM().set_data(t).set_periods(ibis.deferred.period, ["2023", "2024"])
+    try:
+        pvm.calculate_effects()
+    except ValueError as e:
+        assert str(e) == "Calculation graph is not set"
