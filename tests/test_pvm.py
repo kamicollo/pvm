@@ -299,7 +299,7 @@ def test_pvm_get_wide_table():
         .pivot(
             values=["revenue", "rate", "qty"],
             index="region",
-            columns="period",
+            on="period",
             aggregate_function="sum",
         )
         .fill_null(0)
@@ -347,7 +347,7 @@ def test_pvm_get_wide_table_one_column():
         .pivot(
             values=["qty"],
             index="region",
-            columns="period",
+            on="period",
             aggregate_function="sum",
         )
         .fill_null(0)
