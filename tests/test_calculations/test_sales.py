@@ -4,6 +4,7 @@ import polars as pl
 import pytest
 from ibis import _
 from polars.testing import assert_frame_equal, assert_frame_not_equal
+from pvm import PERIOD_COLUMN
 from pvm.fields import Field, QuantityField, RateField
 from pvm.pvm import PVM
 
@@ -68,7 +69,7 @@ def test_aggregation_correctness_country_sku(
             pl.lit(0.0).alias("revenue_rec"),
             pl.lit(0.0).alias("unit_price_rec"),
             pl.col("period").cast(pl.String),
-        ),
+        ).rename({"period": PERIOD_COLUMN}),
         check_dtypes=False,
         check_column_order=False,
         check_row_order=False,
@@ -92,7 +93,7 @@ def test_aggregation_correctness_no_hierarchy(
             pl.lit(0.0).alias("revenue_rec"),
             pl.lit(0.0).alias("unit_price_rec"),
             pl.col("period").cast(pl.String),
-        ),
+        ).rename({"period": PERIOD_COLUMN}),
         check_dtypes=False,
         check_column_order=False,
         check_row_order=False,

@@ -8,6 +8,7 @@ from typing import Self
 
 import ibis
 
+from pvm import PERIOD_COLUMN
 from pvm.fields import Field
 from pvm.formulas import derive_effect_fields
 
@@ -137,7 +138,7 @@ class PVM:
             raise ValueError("Calculation graph is not set")
 
         period_filter = self.period_expression.isin(list(self.period_order))
-        group_by_fields = self.hierarchy + [self.period_expression.name("period")]
+        group_by_fields = self.hierarchy + [self.period_expression.name(PERIOD_COLUMN)]
         return (
             self.data.filter(period_filter)  # type: ignore
             .group_by(group_by_fields)  # type: ignore
@@ -172,7 +173,7 @@ class PVM:
             raise ValueError("Calculation graph is not set")
         t = self.aggregated.pivot_wider(
             names=self.period_order,
-            names_from=["period"],
+            names_from=[PERIOD_COLUMN],
             values_from=[f.name for f in self.graph.get_flattened_graph()],
             values_agg="sum",
             values_fill=0,

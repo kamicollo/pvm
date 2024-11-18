@@ -1,6 +1,7 @@
 import ibis
 import polars as pl
 from polars.testing import assert_frame_equal
+from pvm import PERIOD_COLUMN
 from pvm.fields import Field, QuantityField, RateField
 from pvm.pvm import PVM
 
@@ -81,7 +82,8 @@ def test_pvm_with_hierarchy():
                 (pl.col("rate") * pl.col("qty")).sum().alias("revenue"),
             ]
         )
-        .with_columns((pl.col("revenue") / pl.col("qty")).alias("rate")),
+        .with_columns((pl.col("revenue") / pl.col("qty")).alias("rate"))
+        .rename({"period": PERIOD_COLUMN}),
         check_column_order=False,
         check_row_order=False,
         check_dtypes=False,
@@ -109,7 +111,9 @@ def test_pvm_aggregation():
 
     assert_frame_equal(
         result,
-        df.with_columns((pl.col("qty") * pl.col("rate")).alias("total")),
+        df.with_columns((pl.col("qty") * pl.col("rate")).alias("total")).rename(
+            {"period": PERIOD_COLUMN}
+        ),
         check_column_order=False,
         check_row_order=False,
         check_dtypes=False,
@@ -148,7 +152,7 @@ def test_pvm_aggregation_with_reconciliation_field():
         result,
         df.with_columns(
             (pl.col("total") - pl.col("qty") * pl.col("rate")).alias("total_rec"),
-        ),
+        ).rename({"period": PERIOD_COLUMN}),
         check_column_order=False,
         check_row_order=False,
         check_dtypes=False,
@@ -187,7 +191,7 @@ def test_pvm_aggregation_with_reconciliation_difference():
         result,
         df.with_columns(
             (pl.col("total") - pl.col("qty") * pl.col("rate")).alias("total_rec"),
-        ),
+        ).rename({"period": PERIOD_COLUMN}),
         check_column_order=False,
         check_row_order=False,
         check_dtypes=False,
