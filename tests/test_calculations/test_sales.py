@@ -18,6 +18,7 @@ def sales_dataset() -> ibis.Table:
 def revenue_graph() -> ibis.deferred.Deferred:
     price = RateField(
         "unit_price",
+        reconcile=True,
         definition=(_.volume * _.unit_price).sum() / _.volume.sum(),
         components=[
             QuantityField(
@@ -25,7 +26,9 @@ def revenue_graph() -> ibis.deferred.Deferred:
                 definition=(_.volume * _.price_in_lc).sum() / _.volume.sum(),
             ),
             RateField(
-                "fx_rate", definition=(_.volume * _.fx_rate).sum() / _.volume.sum()
+                "fx_rate",
+                definition=(_.volume * _.fx_rate * _.price_in_lc).sum()
+                / (_.price_in_lc * _.volume).sum(),
             ),
         ],
     )
@@ -63,6 +66,7 @@ def test_aggregation_correctness_country_sku(
         result,
         datasets.sales.aggregate_by_country_sku.with_columns(
             pl.lit(0.0).alias("revenue_rec"),
+            pl.lit(0.0).alias("unit_price_rec"),
             pl.col("period").cast(pl.String),
         ),
         check_dtypes=False,
@@ -86,6 +90,7 @@ def test_aggregation_correctness_no_hierarchy(
         result,
         datasets.sales.aggregate.with_columns(
             pl.lit(0.0).alias("revenue_rec"),
+            pl.lit(0.0).alias("unit_price_rec"),
             pl.col("period").cast(pl.String),
         ),
         check_dtypes=False,
