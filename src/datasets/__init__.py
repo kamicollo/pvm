@@ -38,5 +38,21 @@ class Sales:
             self.get_url("405170366"),
         )
 
+    @cached_property
+    def effects_by_country_sku(self) -> pl.DataFrame:
+        """Effects data."""
+        return pl.read_csv(
+            self.get_url("734704852"),
+            skip_rows=25,
+        )
+
+    @cached_property
+    def effects_by_customer_sku(self) -> pl.DataFrame:
+        """Effects data."""
+        return pl.read_csv(
+            self.get_url("829016621"),
+            skip_rows=56,
+        )
+
 
 sales = Sales()
