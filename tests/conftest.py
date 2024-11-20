@@ -18,6 +18,11 @@ def effects_by_country_sku() -> pl.DataFrame:
 
 
 @pytest.fixture(scope="module")
+def cost_effects_by_country_sku() -> pl.DataFrame:
+    return datasets.sales.cost_effects_by_country_sku.sort("country", "sku")
+
+
+@pytest.fixture(scope="module")
 def effects_by_customer_sku() -> pl.DataFrame:
     return datasets.sales.effects_by_customer_sku.sort("customer", "sku")
 

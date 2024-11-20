@@ -10,7 +10,7 @@ root_path = pathlib.Path(__file__).parent
 __all__ = ["sales"]
 
 
-class Sales:
+class _Sales:
     """Fake sales dataset."""
 
     def get_url(self, gid: str) -> str:
@@ -54,5 +54,13 @@ class Sales:
             skip_rows=56,
         )
 
+    @cached_property
+    def cost_effects_by_country_sku(self) -> pl.DataFrame:
+        """Effects data."""
+        return pl.read_csv(
+            self.get_url("2074617120"),
+            skip_rows=25,
+        )
 
-sales = Sales()
+
+sales = _Sales()
