@@ -1,8 +1,26 @@
 """Fake datasets for testing and demonstration purposes."""
 
+from typing import TypedDict
+
 import faker
 import numpy as np
 import polars as pl
+
+
+class SalesRecord(TypedDict):
+    """Sales record."""
+
+    year: int
+    country: str
+    currency: str
+    sku: str
+    customer: str
+    unit_price: float
+    fx_rate: float
+    volume: float
+    flat_fee: float
+    unit_cost: float
+    cost_fx_rate: float
 
 
 def generate_sales() -> pl.DataFrame:
@@ -38,7 +56,7 @@ def generate_sales() -> pl.DataFrame:
         for country, currency in country_currencies:
             for sku in skus:
                 for customer in customers:
-                    record = {
+                    record: SalesRecord = {
                         "year": year,
                         "country": country,
                         "currency": currency,
@@ -48,6 +66,8 @@ def generate_sales() -> pl.DataFrame:
                         "fx_rate": fx_rates[currency],
                         "volume": rng.gamma(25, 3),
                         "flat_fee": rng.uniform(-20, 20) if rng.binomial(n=1, p=0.2) else 0,
+                        "cost_fx_rate": 0,
+                        "unit_cost": 0,
                     }
                     record["unit_cost"] = rng.normal(record["unit_price"] * base_margins[sku], 2)
                     record["cost_fx_rate"] = record["fx_rate"] * rng.normal(1, 0.05)
