@@ -10,7 +10,7 @@ import ibis
 
 from pvm import PERIOD_COLUMN
 from pvm.fields import Field
-from pvm.formulas import derive_effect_fields
+from pvm.formulas import change_field, derive_effect_fields
 
 
 class CalculationMethod(Enum):
@@ -192,5 +192,6 @@ class PVM:
             strict=False,
         ):
             effect_fields = derive_effect_fields(self.graph, period_start, period_end)
-            t = t.mutate(effect_fields)  # type: ignore
+            change_fields = [change_field(f, period_start, period_end) for f in self.graph.get_flattened_graph()]
+            t = t.mutate(change_fields).mutate(effect_fields)  # type: ignore
         return t
