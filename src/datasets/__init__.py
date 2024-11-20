@@ -28,7 +28,7 @@ class Sales:
     def aggregate_by_country_sku(self) -> pl.DataFrame:
         """Aggregated data."""
         return pl.read_csv(
-            self.get_url("1665578619"),
+            self.get_url("238197282"),
         )
 
     @cached_property

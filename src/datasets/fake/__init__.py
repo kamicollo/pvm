@@ -21,6 +21,8 @@ class SalesRecord(TypedDict):
     flat_fee: float
     unit_cost: float
     cost_fx_rate: float
+    raw_material: float
+    yield_rate: float
 
 
 def generate_sales() -> pl.DataFrame:
@@ -68,15 +70,18 @@ def generate_sales() -> pl.DataFrame:
                         "flat_fee": rng.uniform(-20, 20) if rng.binomial(n=1, p=0.2) else 0,
                         "cost_fx_rate": 0,
                         "unit_cost": 0,
+                        "raw_material": 0,
+                        "yield_rate": rng.uniform(0.8, 0.9),
                     }
                     record["unit_cost"] = rng.normal(record["unit_price"] * base_margins[sku], 2)
                     record["cost_fx_rate"] = record["fx_rate"] * rng.normal(1, 0.05)
+                    record["raw_material"] = record["volume"] / record["yield_rate"]
                     if rng.binomial(n=1, p=0.5):
                         data.append(record)
 
     return pl.DataFrame(data).with_columns(
-        (pl.col("unit_price") * pl.col("fx_rate")).alias("price_in_lc"),
-        (pl.col("unit_cost") * pl.col("cost_fx_rate")).alias("cost_in_lc"),
+        (pl.col("unit_price") / pl.col("fx_rate")).alias("price_in_lc"),
+        (pl.col("unit_cost") / pl.col("cost_fx_rate")).alias("cost_in_lc"),
         (pl.col("unit_price") * pl.col("volume") + pl.col("flat_fee")).alias("revenue"),
         (pl.col("unit_cost") * pl.col("volume")).alias("cost"),
     )
