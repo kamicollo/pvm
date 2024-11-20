@@ -1,56 +1,16 @@
-import datasets
 import ibis
 import polars as pl
-import pytest
 from ibis import _
 from polars.testing import assert_frame_equal, assert_frame_not_equal
 from pvm import PERIOD_COLUMN
-from pvm.fields import Field, QuantityField, RateField
+from pvm.fields import Field
 from pvm.pvm import PVM
 
 
-@pytest.fixture
-def sales_dataset() -> ibis.Table:
-    con = ibis.polars.connect({"sales": datasets.sales.raw})
-    return con.table("sales")
-
-
-@pytest.fixture
-def revenue_graph() -> ibis.deferred.Deferred:
-    price = RateField(
-        "unit_price",
-        reconcile=True,
-        definition=(_.volume * _.unit_price).sum() / _.volume.sum(),
-        components=[
-            QuantityField(
-                "price_in_lc",
-                definition=(_.volume * _.price_in_lc).sum() / _.volume.sum(),
-            ),
-            RateField(
-                "fx_rate",
-                definition=(_.volume * _.fx_rate * _.price_in_lc).sum()
-                / (_.price_in_lc * _.volume).sum(),
-            ),
-        ],
-    )
-
-    revenue = Field(
-        "revenue",
-        definition=_.revenue.sum(),
-        components=[
-            price,
-            QuantityField(
-                "volume",
-                definition=_.volume.sum(),
-            ),
-            Field("flat_fee", definition=_.flat_fee.sum()),
-        ],
-    )
-    return revenue
-
-
 def test_aggregation_correctness_country_sku(
-    sales_dataset: ibis.Table, revenue_graph: ibis.deferred.Deferred
+    sales_dataset: ibis.Table,
+    revenue_graph: Field,
+    aggregate_by_country_sku: pl.DataFrame,
 ):
     pvm = (
         PVM()
@@ -65,8 +25,44 @@ def test_aggregation_correctness_country_sku(
 
     assert_frame_equal(
         result,
-        datasets.sales.aggregate_by_country_sku.with_columns(
+        aggregate_by_country_sku.with_columns(
             pl.lit(0.0).alias("revenue_rec"),
+            pl.lit(0.0).alias("unit_price_rec"),
+            pl.col("period").cast(pl.String),
+        )
+        .rename({"period": PERIOD_COLUMN})
+        .drop(
+            ["profit", "cost", "unit_cost", "raw_material", "yield_rate", "cost_volume"]
+        ),
+        check_dtypes=False,
+        check_column_order=False,
+        check_row_order=False,
+        check_exact=False,
+        atol=1e-1,
+    )
+
+
+def test_aggregation_correctness_country_sku_profit_graph(
+    sales_dataset: ibis.Table,
+    profit_graph: Field,
+    aggregate_by_country_sku: pl.DataFrame,
+):
+    pvm = (
+        PVM()
+        .set_data(sales_dataset)
+        .set_periods(_.year, ["2020", "2021"])
+        .set_hierarchy([_.country, _.sku])
+    )
+
+    pvm.set_graph(profit_graph)
+
+    result = pvm.aggregated.to_polars()
+
+    assert_frame_equal(
+        result,
+        aggregate_by_country_sku.with_columns(
+            pl.lit(0.0).alias("revenue_rec"),
+            pl.lit(0.0).alias("cost_rec"),
             pl.lit(0.0).alias("unit_price_rec"),
             pl.col("period").cast(pl.String),
         ).rename({"period": PERIOD_COLUMN}),
@@ -79,7 +75,7 @@ def test_aggregation_correctness_country_sku(
 
 
 def test_aggregation_correctness_no_hierarchy(
-    sales_dataset: ibis.Table, revenue_graph: ibis.deferred.Deferred
+    sales_dataset: ibis.Table, revenue_graph: Field, aggregate: pl.DataFrame
 ):
     pvm = PVM().set_data(sales_dataset).set_periods(_.year, ["2020", "2021"])
 
@@ -89,7 +85,7 @@ def test_aggregation_correctness_no_hierarchy(
 
     assert_frame_equal(
         result,
-        datasets.sales.aggregate.with_columns(
+        aggregate.with_columns(
             pl.lit(0.0).alias("revenue_rec"),
             pl.lit(0.0).alias("unit_price_rec"),
             pl.col("period").cast(pl.String),
