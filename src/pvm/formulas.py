@@ -30,7 +30,7 @@ def derive_effect_fields(
     start: str,
     end: str,
     expr_prefix: float | ibis.Deferred = 1.0,
-    effect_override: ibis.Deferred | None = None,
+    volume_effect_override: ibis.Deferred | None = None,
 ) -> list[ibis.Deferred]:
     """
     Derive effect fields for a field.
@@ -40,6 +40,7 @@ def derive_effect_fields(
         start (str): The start period.
         end (str): The end period.
         expr_prefix (int | ibis.Deferred, optional): The expression prefix. Defaults to 1.
+        volume_effect_override (ibis.Deferred | None, optional): The effect override. Defaults to None.
 
     Returns:
         list[ibis.Deferred]: The derived effect fields.
@@ -63,7 +64,7 @@ def derive_effect_fields(
                 calculation_condition,
                 quantity_change * rate_start * expr_prefix,
             )
-            .else_(total_change * expr_prefix if effect_override is None else effect_override)
+            .else_(total_change * expr_prefix if volume_effect_override is None else volume_effect_override)
             .end()
             .name(field.quantity.name + EFFECT_COLUMN + start),
         )
@@ -85,8 +86,8 @@ def derive_effect_fields(
                     field.quantity,
                     start,
                     end,
-                    ibis.case().when(calculation_condition, expr_prefix * rate_start).else_(1).end(),
-                    total_change if effect_override is None else effect_override,
+                    ibis.case().when(calculation_condition, expr_prefix * rate_start).else_(1).end(),  # type: ignore
+                    total_change if volume_effect_override is None else volume_effect_override,
                 ),
             )
 
@@ -96,7 +97,7 @@ def derive_effect_fields(
                     field.rate,
                     start,
                     end,
-                    ibis.case().when(calculation_condition, expr_prefix * quantity_end).else_(0).end(),
+                    ibis.case().when(calculation_condition, expr_prefix * quantity_end).else_(0).end(),  # type: ignore
                     None,
                 ),
             )
