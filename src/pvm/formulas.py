@@ -30,6 +30,7 @@ def derive_effect_fields(
     start: str,
     end: str,
     expr_prefix: float | ibis.Deferred = 1.0,
+    effect_override: ibis.Deferred | None = None,
 ) -> list[ibis.Deferred]:
     """
     Derive effect fields for a field.
@@ -53,7 +54,8 @@ def derive_effect_fields(
         rate_end = col[field.rate.name + "_" + end]
         quantity_change = quantity_end - quantity_start
         rate_change = rate_end - rate_start
-        calculation_condition = (quantity_start != 0) & (quantity_end != 0)
+        calculation_condition = (quantity_start.fill_null(0) != 0) & (quantity_end.fill_null(0) != 0)
+        total_change = (quantity_end * rate_end) - (quantity_start * rate_start)
 
         fields.append(
             ibis.case()
@@ -61,20 +63,10 @@ def derive_effect_fields(
                 calculation_condition,
                 quantity_change * rate_start * expr_prefix,
             )
-            .else_(quantity_change * expr_prefix)
+            .else_(total_change * expr_prefix if effect_override is None else effect_override)
             .end()
             .name(field.quantity.name + EFFECT_COLUMN + start),
         )
-
-        if field.quantity.components:
-            fields.extend(
-                derive_effect_fields(
-                    field.quantity,
-                    start,
-                    end,
-                    expr_prefix * rate_start,
-                ),
-            )
 
         fields.append(
             ibis.case()
@@ -87,13 +79,25 @@ def derive_effect_fields(
             .name(field.rate.name + EFFECT_COLUMN + start),
         )
 
+        if field.quantity.components:
+            fields.extend(
+                derive_effect_fields(
+                    field.quantity,
+                    start,
+                    end,
+                    ibis.case().when(calculation_condition, expr_prefix * rate_start).else_(1).end(),
+                    total_change if effect_override is None else effect_override,
+                ),
+            )
+
         if field.rate.components:
             fields.extend(
                 derive_effect_fields(
                     field.rate,
                     start,
                     end,
-                    expr_prefix * quantity_end * ibis.case().when(calculation_condition, 1).else_(0).end(),
+                    ibis.case().when(calculation_condition, expr_prefix * quantity_end).else_(0).end(),
+                    None,
                 ),
             )
 
