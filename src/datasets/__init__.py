@@ -70,5 +70,13 @@ class _Sales:
             skip_rows=56,
         )
 
+    @cached_property
+    def profit_effects_by_country_sku(self) -> pl.DataFrame:
+        """Effects data."""
+        return pl.read_csv(
+            self.get_url("890734484"),
+            skip_rows=0,
+        )
+
 
 sales = _Sales()
