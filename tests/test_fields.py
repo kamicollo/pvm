@@ -313,3 +313,21 @@ def test_composite_rate_field_properties():
     assert all(isinstance(r, RateField) for r in composite.rates)
     assert rate1 in composite.rates
     assert rate2 in composite.rates
+
+
+def test_rate_fields_cannot_have_simple_components():
+    rate = RateField(name="rate", definition=deferred)
+    qty = QuantityField(name="qty", definition=deferred)
+    simple = Field(name="simple", definition=deferred)
+
+    with pytest.raises(ValueError, match="type rate cannot have simple components"):
+        RateField(name="test", components=[rate, qty, simple])
+
+
+def test_quantity_fields_cannot_have_simple_components():
+    rate = RateField(name="rate", definition=deferred)
+    qty = QuantityField(name="qty", definition=deferred)
+    simple = Field(name="simple", definition=deferred)
+
+    with pytest.raises(ValueError, match="type quantity cannot have simple components"):
+        QuantityField(name="test", components=[rate, qty, simple])

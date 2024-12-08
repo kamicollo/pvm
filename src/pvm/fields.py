@@ -139,6 +139,10 @@ class BaseField(ABC):
         if len(self._rate_components) == 0 and len(self._quantity_components) == 1:
             raise ValueError(f"Field {self.name} is missing a rate component")
 
+        # we do not allow fields that are of Rate or Quantity type to have simple components
+        if self.type in ["rate", "quantity"] and any(c.type == "simple" for c in self.components):
+            raise ValueError(f"Field {self.name} of type {self.type} cannot have simple components")
+
     def __post_init__(self) -> None:
         """Validate the field configuration and adds reconciliation field if necessary."""
         self._validate_components()
