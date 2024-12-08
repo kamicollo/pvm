@@ -38,6 +38,11 @@ def cost_effects_by_customer_sku() -> pl.DataFrame:
 
 
 @pytest.fixture(scope="module")
+def profit_effects_by_country_sku() -> pl.DataFrame:
+    return datasets.sales.profit_effects_by_country_sku.sort("country", "sku")
+
+
+@pytest.fixture(scope="module")
 def aggregate() -> pl.DataFrame:
     return datasets.sales.aggregate
 

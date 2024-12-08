@@ -68,9 +68,41 @@ def test_dataset_with_composite_rate():
     pytest.skip("Not implemented yet")
 
 
-def test_dataset_with_parent_simple():
-    """Tests correctness of calculations when the top level field is a simple one."""
+def test_dataset_with_other_components_downstream():
+    """Tests correctness of calculations when a graph a rate component includes other components downstream."""
+    """ Example: cost is driven by volume and unit cost, and volume is driven by raw material and yield rate."""
+    """ However, raw material has a fixed volume component that's always there."""
     pytest.skip("Not implemented yet")
+
+
+def test_dataset_with_parent_simple(
+    sales_dataset: ibis.Table,
+    profit_graph: Field,
+    profit_effects_by_country_sku: pl.DataFrame,
+):
+    """Tests correctness of calculations when the top level field is a simple one."""
+
+    pvm = (
+        PVM()
+        .set_data(sales_dataset)
+        .set_periods(_.year, ["2020", "2021"])
+        .set_hierarchy([_.country, _.sku])
+    )
+
+    pvm.set_graph(profit_graph)
+
+    tbl = pvm.calculate_effects()
+    result = tbl.to_polars().sort("country", "sku")
+
+    assert_frame_equal(
+        # drop reconciliation fields as we're not that interested in them
+        result.drop([c for c in result.columns if "_rec_" in c]),
+        profit_effects_by_country_sku,
+        check_column_order=False,
+        check_row_order=True,
+        check_dtypes=False,
+        atol=1e-2,
+    )
 
 
 def test_correctness_quantity_components_new_discontinued(

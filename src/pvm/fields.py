@@ -96,9 +96,13 @@ class BaseField(ABC):
             Deferred | None: Ibis expression representing the calculated definition
 
         """
-        if self.rate and self.quantity:
-            return (self.rate.formula * self.quantity.formula) + sum(
-                [c.formula for c in self.other_components],
+        if self.components:
+            if self.rate and self.quantity:
+                return (self.rate.formula * self.quantity.formula) + sum(
+                    [c.formula for c in self.other_components],
+                )
+            return sum(
+                [c.formula for c in self.other_components],  # type: ignore
             )
         return None
 

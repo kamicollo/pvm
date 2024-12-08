@@ -102,12 +102,20 @@ def derive_effect_fields(
                 ),
             )
 
-    fields.extend(
-        [
+    for f in field.other_components:
+        fields.append(
             ((col[f.name + "_" + end] - col[f.name + "_" + start]) * expr_prefix).name(
                 f.name + EFFECT_COLUMN + start,
+            ),
+        )
+        if f.components:
+            fields.extend(
+                derive_effect_fields(
+                    f,
+                    start,
+                    end,
+                    expr_prefix,
+                    volume_effect_override,
+                ),
             )
-            for f in field.other_components
-        ],
-    )
     return fields
