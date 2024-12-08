@@ -115,7 +115,7 @@ def derive_effect_fields(
                     start,
                     end,
                     expr_prefix,
-                    volume_effect_override,
+                    None,
                 ),
             )
     return fields
