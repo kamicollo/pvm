@@ -3,7 +3,7 @@ import ibis
 import polars as pl
 import pytest
 from ibis import _
-from pvm.fields import Field, QuantityField, RateField
+from pvm.fields import CompositeRateField, Field, QuantityField, RateField
 
 
 @pytest.fixture(scope="module")
@@ -40,6 +40,11 @@ def cost_effects_by_customer_sku() -> pl.DataFrame:
 @pytest.fixture(scope="module")
 def profit_effects_by_country_sku() -> pl.DataFrame:
     return datasets.sales.profit_effects_by_country_sku.sort("country", "sku")
+
+
+@pytest.fixture(scope="module")
+def composite_profit_effects_by_country_sku() -> pl.DataFrame:
+    return datasets.sales.composite_profit_effects_by_country_sku.sort("country", "sku")
 
 
 @pytest.fixture(scope="module")
@@ -116,4 +121,24 @@ def profit_graph(revenue_graph: Field, cost_graph: Field) -> Field:
         "profit",
         definition=_.revenue.sum() - _.cost.sum(),
         components=[revenue_graph, cost_graph],
+    )
+
+
+@pytest.fixture
+def composite_profit_graph(revenue_graph: Field, cost_graph: Field) -> Field:
+    composite_rate = CompositeRateField(
+        "unit_profit",
+        components=[
+            revenue_graph.rate,  # type: ignore
+            cost_graph.rate,  # type: ignore
+        ],
+    )
+
+    other_components = revenue_graph.other_components + cost_graph.other_components
+    components = [composite_rate, revenue_graph.quantity] + other_components
+
+    return Field(
+        "profit",
+        definition=_.revenue.sum() - _.cost.sum(),
+        components=components,  # type: ignore
     )

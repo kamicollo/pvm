@@ -101,6 +101,17 @@ def derive_effect_fields(
                     None,
                 ),
             )
+    if isinstance(field, CompositeRateField):
+        for r in field.rates:
+            fields.extend(
+                derive_effect_fields(
+                    r,
+                    start,
+                    end,
+                    expr_prefix,
+                    None,
+                ),
+            )
 
     for f in field.other_components:
         fields.append(
