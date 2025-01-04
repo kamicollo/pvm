@@ -48,6 +48,7 @@ def derive_effect_fields(
     """
     fields = []
 
+    # if the field has a rate and quantity component, calculate price/volume effects
     if field.rate and field.quantity:
         quantity_start = col[field.quantity.name + "_" + start]
         rate_start = col[field.rate.name + "_" + start]
@@ -58,6 +59,7 @@ def derive_effect_fields(
         calculation_condition = (quantity_start.fill_null(0) != 0) & (quantity_end.fill_null(0) != 0)
         total_change = (quantity_end * rate_end) - (quantity_start * rate_start)
 
+        # add quantity effect
         fields.append(
             ibis.case()
             .when(
@@ -69,6 +71,7 @@ def derive_effect_fields(
             .name(field.quantity.name + EFFECT_COLUMN + start),
         )
 
+        # add rate effect
         fields.append(
             ibis.case()
             .when(
@@ -80,6 +83,24 @@ def derive_effect_fields(
             .name(field.rate.name + EFFECT_COLUMN + start),
         )
 
+        # if the rate field is composite, also add individual component effects
+        if isinstance(field.rate, CompositeRateField):
+            for rate_component in field.rate.rates:
+                rate_component_start = col[rate_component.name + "_" + start]
+                rate_component_end = col[rate_component.name + "_" + end]
+                rate_component_change = rate_component_end - rate_component_start
+                fields.append(
+                    ibis.case()
+                    .when(
+                        calculation_condition,
+                        rate_component_change * quantity_end * expr_prefix,
+                    )
+                    .else_(0)
+                    .end()
+                    .name(rate_component.name + EFFECT_COLUMN + start),
+                )
+
+        # propagate recursively to any components of quantity fields
         if field.quantity.components:
             fields.extend(
                 derive_effect_fields(
@@ -91,6 +112,7 @@ def derive_effect_fields(
                 ),
             )
 
+        # propagate recursively to any components of rate field
         if field.rate.components:
             fields.extend(
                 derive_effect_fields(
@@ -101,24 +123,29 @@ def derive_effect_fields(
                     None,
                 ),
             )
-    if isinstance(field, CompositeRateField):
-        for r in field.rates:
-            fields.extend(
-                derive_effect_fields(
-                    r,
-                    start,
-                    end,
-                    expr_prefix,
-                    None,
-                ),
-            )
+        # propagate recursively to any components of composite rate fields
+        if isinstance(field.rate, CompositeRateField):
+            for r in field.rate.rates:
+                if r.components:
+                    fields.extend(
+                        derive_effect_fields(
+                            r,
+                            start,
+                            end,
+                            ibis.case().when(calculation_condition, expr_prefix * quantity_end).else_(0).end(),  # type: ignore
+                            None,
+                        ),
+                    )
 
+    # deal with any non-quantity/non-rate components
     for f in field.other_components:
+        # add a direct change calculation
         fields.append(
             ((col[f.name + "_" + end] - col[f.name + "_" + start]) * expr_prefix).name(
                 f.name + EFFECT_COLUMN + start,
             ),
         )
+        # recursively propagate if any components exist
         if f.components:
             fields.extend(
                 derive_effect_fields(
