@@ -63,9 +63,6 @@ def test_aggregation_correctness_new_discontinued(
     )
 
 
-@pytest.mark.xfail(
-    reason="Known issue with aggregation correctness for new/discontinued items"
-)
 def test_dataset_with_composite_rate(
     sales_dataset: ibis.Table,
     composite_profit_graph: Field,
