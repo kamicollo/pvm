@@ -1,5 +1,6 @@
 import ibis
 import polars as pl
+import pytest
 from ibis import _
 from polars.testing import assert_frame_equal
 from pvm.fields import Field
@@ -89,6 +90,15 @@ def test_dataset_with_composite_rate(
         check_dtypes=False,
         atol=1e-2,
     )
+
+
+@pytest.mark.skip("Incomplete")
+def test_dataset_with_composite_rate_and_nested_children(
+    sales_dataset: ibis.Table,
+    composite_profit_graph: Field,
+    composite_profit_effects_by_country_sku: pl.DataFrame,
+):
+    pass
 
 
 def test_dataset_with_parent_simple(
