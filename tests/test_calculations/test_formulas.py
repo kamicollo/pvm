@@ -1,6 +1,5 @@
 import ibis
 import polars as pl
-import pytest
 from ibis import _
 from polars.testing import assert_frame_equal
 from pvm.fields import Field
