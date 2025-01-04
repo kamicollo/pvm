@@ -9,6 +9,8 @@ from typing import Literal
 
 from ibis import Deferred
 
+from pvm import CHANGE_COLUMN, EFFECT_COLUMN
+
 # Define the literal type for field types
 FieldType = Literal["simple", "rate", "quantity", "reconciliation"]
 
@@ -170,6 +172,45 @@ class BaseField(ABC):
         for component in self.components:
             flat_graph.extend(component.get_flattened_graph())
         return flat_graph
+
+    def period_column(self, period: str) -> str:
+        """
+        Get string reference to a wide column representing the field value for a given period.
+
+        Args:
+            period (str): period of interest
+
+        Returns:
+            str: string reference to a column of form "fieldname_period"
+
+        """
+        return self.name + "_" + period
+
+    def change_column(self, period: str) -> str:
+        """
+        Get string reference to a wide column representing the field change value for a given period.
+
+        Args:
+            period (str): period of interest
+
+        Returns:
+            str: string reference to a column of form "fieldname__change__period"
+
+        """
+        return self.name + CHANGE_COLUMN + period
+
+    def effect_column(self, period: str) -> str:
+        """
+        Get string reference to a wide column representing the field value for a given period.
+
+        Args:
+            period (str): period of interest
+
+        Returns:
+            str: string reference to a column of form "fieldname__effect__period"
+
+        """
+        return self.name + EFFECT_COLUMN + period
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
