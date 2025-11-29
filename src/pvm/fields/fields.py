@@ -1,18 +1,14 @@
-"""Field classes for PVM."""
+"""Base field class for PVM."""
 
 from __future__ import annotations
 
 import dataclasses
 from abc import ABC
 from collections.abc import MutableSequence
-from typing import Literal
 
 from ibis import Deferred
 
 from pvm import CHANGE_COLUMN, EFFECT_COLUMN
-
-# Define the literal type for field types
-FieldType = Literal["simple", "rate", "quantity", "reconciliation"]
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -29,10 +25,13 @@ class BaseField(ABC):
     """
 
     name: str
-    type: FieldType
     reconcile: bool
-    components: list[Field | RateField | QuantityField] = dataclasses.field(default_factory=list, compare=False)
+    components: list[Field | RateField | QuantityField | ReconciliationField] = dataclasses.field(
+        default_factory=list,
+        compare=False,
+    )
     definition: Deferred | None = None
+    dot_shape: str = "rectangle"
 
     @property
     def _rate_components(self) -> list[RateField]:
@@ -141,10 +140,6 @@ class BaseField(ABC):
         if len(self._rate_components) == 0 and len(self._quantity_components) == 1:
             raise ValueError(f"Field {self.name} is missing a rate component")
 
-        # we do not allow fields that are of Rate or Quantity type to have simple components
-        if self.type in ["rate", "quantity"] and any(c.type == "simple" for c in self.components):
-            raise ValueError(f"Field {self.name} of type {self.type} cannot have simple components")
-
     def __post_init__(self) -> None:
         """Validate the field configuration and adds reconciliation field if necessary."""
         self._validate_components()
@@ -212,37 +207,134 @@ class BaseField(ABC):
         """
         return self.name + EFFECT_COLUMN + period
 
+    def to_dot_graph(self, *, initialize: bool = True) -> str:
+        """
+        Generate a dot graph (graphviz) representation of the field and its components.
+
+        Returns:
+            str: a Dot graph representation of the field and its components
+
+        """
+        graph = f"digraph {self.name} {{\n" if initialize else ""
+        graph += self.dot_representation()
+        for component in self.components:
+            graph += f'"{self.name}" -> "{component.name}"\n'
+            graph += component.to_dot_graph(initialize=False)
+        if initialize:
+            graph += "}\n"
+        return graph
+
+    def dot_representation(self) -> str:
+        """
+        Generate a representation of the field as a node in the graphviz dot graph.
+
+        Returns:
+            str: node defintion for the field.
+
+        """
+        return f"""{self.name} [
+            label=<{self.dot_label}>
+            shape={self.dot_shape}
+        ]
+        """
+
+    @property
+    def dot_label(self) -> str:
+        """
+        Get the label of the node in the graphviz dot graph.
+
+        Returns:
+            str: label of the node
+
+        """
+        return f"""
+        <table border="0" cellborder="0" cellspacing="0" cellpadding="4">
+			<tr> <td> <b>{self.name} ({self.__class__.__name__})</b> </td> </tr>
+			<tr> <td> <b>Direct formula:</b> <i>{self.dot_formula}</i></td> </tr>
+            <tr> <td> <b>Implied formula:</b> <i>{self.calculated_definition_as_string}</i></td> </tr>
+		</table>
+        """
+
+    @property
+    def dot_formula(self) -> str:
+        """
+        Get the formula of the node in the graphviz dot graph.
+
+        Returns:
+            str: formula of the node
+
+        """
+        if isinstance(self, ReconciliationField):
+            return "None"
+        if self.definition is None:
+            return "None"
+        return str(self.definition)
+
+    @property
+    def calculated_definition_as_string(self) -> str:
+        """
+        Returns the calculated definition as a string.
+
+        Returns:
+            str: String representation of the calculated definition
+
+        """
+        if isinstance(self, ReconciliationField):
+            return "calculated as difference"
+        if isinstance(self, CompositeRateField):
+            return " + ".join([c.name for c in self.rates])
+        if self.components:
+            comps = ""
+            if self.other_components:
+                comps = " + ".join([c.name for c in self.other_components])
+            if self.rate and self.quantity:
+                return f"{self.rate.name} * {self.quantity.name}" + (f" + ({comps})" if comps else "")
+            return comps
+        return "None"
+
 
 @dataclasses.dataclass(frozen=True, eq=True)
 class Field(BaseField):
     """Field class for simple fields."""
 
-    type: FieldType = "simple"
     reconcile: bool = True
+    dot_shape: str = "rectangle"
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
-class ReconciliationField(Field):
+class ReconciliationField(BaseField):
     """Field class for reconciliation fields."""
 
-    type: FieldType = "reconciliation"
     reconcile: bool = False
+    dot_shape: str = "plaintext"
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
 class RateField(BaseField):
     """Field class for rate fields."""
 
-    type: FieldType = "rate"
     reconcile: bool = False
+    dot_shape: str = "ellipse"
+
+    def _validate_components(self) -> None:
+        super()._validate_components()
+        # we do not allow fields that are of Rate type to have simple components
+        if any(isinstance(c, Field) for c in self.components):
+            raise ValueError(f"Field {self.name} of type {self.__class__} cannot have simple components")
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
 class QuantityField(BaseField):
     """Field class for quantity fields."""
 
-    type: FieldType = "quantity"
     reconcile: bool = False
+    dot_shape: str = "cylinder"
+
+    def _validate_components(self) -> None:
+        super()._validate_components()
+        # we do not allow fields that are of Quantity type to have simple components
+        if any(isinstance(c, Field) for c in self.components):
+            raise ValueError(f"Field {self.name} of type {self.__class__} cannot have simple components")
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
