@@ -7,6 +7,7 @@ from functools import cached_property
 from typing import Self
 
 import ibis
+from ibis import Deferred
 
 from pvm import PERIOD_COLUMN
 from pvm.fields import Field
@@ -191,7 +192,7 @@ class PVM:
             self.period_order[1:],
             strict=False,
         ):
-            effect_fields = derive_effect_fields(self.graph, period_start, period_end)
+            effect_fields: list[Deferred] = derive_effect_fields(self.graph, period_start, period_end)
             change_fields = [change_field(f, period_start, period_end) for f in self.graph.get_flattened_graph()]
             t = t.mutate(change_fields).mutate(effect_fields)  # type: ignore
         return t

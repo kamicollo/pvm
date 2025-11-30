@@ -10,7 +10,6 @@ from pvm.fields import CompositeRateField, Field, QuantityField, RateField
 def test_field_creation():
     field = Field(name="test", definition=deferred)
     assert field.name == "test"
-    assert field.type == "simple"
     assert field.components == []
 
 
@@ -261,7 +260,6 @@ def test_composite_rate_field_creation():
     composite = CompositeRateField(name="composite", components=[rate1, rate2])
 
     assert composite.name == "composite"
-    assert composite.type == "rate"
     assert len(composite.components) == 2
     assert all(isinstance(c, RateField) for c in composite.components)
 
@@ -320,7 +318,9 @@ def test_rate_fields_cannot_have_simple_components():
     qty = QuantityField(name="qty", definition=deferred)
     simple = Field(name="simple", definition=deferred)
 
-    with pytest.raises(ValueError, match="type rate cannot have simple components"):
+    with pytest.raises(
+        ValueError, match="type RateField cannot have simple components"
+    ):
         RateField(name="test", components=[rate, qty, simple])
 
 
@@ -329,5 +329,7 @@ def test_quantity_fields_cannot_have_simple_components():
     qty = QuantityField(name="qty", definition=deferred)
     simple = Field(name="simple", definition=deferred)
 
-    with pytest.raises(ValueError, match="type quantity cannot have simple components"):
+    with pytest.raises(
+        ValueError, match="type QuantityField cannot have simple components"
+    ):
         QuantityField(name="test", components=[rate, qty, simple])

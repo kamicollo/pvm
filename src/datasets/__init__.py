@@ -5,9 +5,9 @@ from functools import cached_property
 
 import polars as pl
 
-root_path = pathlib.Path(__file__).parent
+root_path: pathlib.Path = pathlib.Path(__file__).parent
 
-__all__ = ["sales"]
+__all__: list[str] = ["sales"]
 
 
 class _Sales:

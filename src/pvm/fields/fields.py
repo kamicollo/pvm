@@ -102,9 +102,7 @@ class BaseField(ABC):
                 return (self.rate.formula * self.quantity.formula) + sum(
                     [c.formula for c in self.other_components],
                 )
-            return sum(
-                [c.formula for c in self.other_components],  # type: ignore
-            )
+            return sum([c.formula for c in self.other_components])  # type: ignore
         return None
 
     @property
@@ -166,7 +164,7 @@ class BaseField(ABC):
         flat_graph: MutableSequence = [self]
         for component in self.components:
             flat_graph.extend(component.get_flattened_graph())
-        return flat_graph
+        return flat_graph  # ty: ignore
 
     def period_column(self, period: str) -> str:
         """
@@ -320,7 +318,7 @@ class RateField(BaseField):
         super()._validate_components()
         # we do not allow fields that are of Rate type to have simple components
         if any(isinstance(c, Field) for c in self.components):
-            raise ValueError(f"Field {self.name} of type {self.__class__} cannot have simple components")
+            raise ValueError(f"Field {self.name} of type {self.__class__.__name__} cannot have simple components")
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -334,7 +332,7 @@ class QuantityField(BaseField):
         super()._validate_components()
         # we do not allow fields that are of Quantity type to have simple components
         if any(isinstance(c, Field) for c in self.components):
-            raise ValueError(f"Field {self.name} of type {self.__class__} cannot have simple components")
+            raise ValueError(f"Field {self.name} of type {self.__class__.__name__} cannot have simple components")
 
 
 @dataclasses.dataclass(frozen=True, eq=True)

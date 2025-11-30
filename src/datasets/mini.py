@@ -4,7 +4,7 @@ import io
 
 import polars as pl
 
-fx = pl.read_csv(
+fx: pl.DataFrame = pl.read_csv(
     io.StringIO(
         """product	country	year	volume	price_in_lc	fx_rate	price	revenue
 A	US	2020	100	10	1	10	1000
