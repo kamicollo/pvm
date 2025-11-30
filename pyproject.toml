@@ -3,7 +3,7 @@ name = "pvm"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "altair>=5.4.1",
     "faker>=33.0.0",
@@ -12,15 +12,19 @@ dependencies = [
     "ibis-framework[duckdb,examples,polars,snowflake,sqlite,visualization]>=9.5.0",
     "ipykernel>=6.29.5",
     "jupyterlab>=4.3.0",
-    "mypy>=1.13.0",
+    "mkdocs-jupyter>=0.25.1",
+    "mkdocstrings-python>=2.0.0",
+    "mypy>=1.14.0",
     "pins>=0.8.6",
     "polars>=1.12.0",
+    "pygments>=2.18.0",
     "pygraphviz>=1.14",
     "pyperclip>=1.9.0",
     "pyright>=1.1.389",
     "pytest-cov>=6.0.0",
     "pytest>=8.3.3",
     "ruff>=0.7.3",
+    "ty>=0.0.1a29",
 ]
 
 [project.scripts]
@@ -70,7 +74,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "C90", "I", "N", "D", "UP", "YTT", "ANN", "ASYNC", "S", "FBT", "B", "A", "COM", "C4", "FA", "ISC", "INP", "PL", "SIM", "RET", "ARG", "PERF"]
-ignore = ["ANN101", "D203", "D212"]
+ignore = ["ANN101", "D203", "D212", "ISC001", "COM812"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
@@ -101,13 +105,20 @@ docstring-code-format = true
 #
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
-docstring-code-line-length = "dynamic"
+docstring-code-line-length = 80
 
-[tool.pyright]
+exclude = ["ANN101", "D203", "D212"]
+
+
+[tool.ty.src]
 include = ["src"]
 exclude = ["**/node_modules",
     "**/__pycache__",
     "src/experimental",
-    "src/typestubs"
+    "src/typestubs",
+    "src/pvm/charts.py", "src/pvm/calculations.py", "src/formulas.py", "tests"
 ]
-ignore = ["src/charts.py", "src/calculations.py", "src/formulas.py", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["ibis.*"]
+follow_untyped_imports = true

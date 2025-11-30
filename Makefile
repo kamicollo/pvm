@@ -1,7 +1,8 @@
 lint:
 	ruff check .
+	ruff format .
+	ty check
 	mypy .
-
 test:
 	pytest tests
 
