@@ -31,7 +31,6 @@ class BaseField(ABC):
         compare=False,
     )
     definition: Deferred | None = None
-    dot_shape: str = "rectangle"
 
     @property
     def _rate_components(self) -> list[RateField]:
@@ -205,90 +204,17 @@ class BaseField(ABC):
         """
         return self.name + EFFECT_COLUMN + period
 
-    def to_dot_graph(self, *, initialize: bool = True) -> str:
+    def display(self, dpi: int = 96, size: tuple[int, int] | None = None) -> None:
         """
-        Generate a dot graph (graphviz) representation of the field and its components.
+        Display a graphviz representation of the field and its components.
 
         Returns:
-            str: a Dot graph representation of the field and its components
+            None
 
         """
-        graph = f"digraph {self.name} {{\n" if initialize else ""
-        graph += self.dot_representation()
-        for component in self.components:
-            graph += f'"{self.name}" -> "{component.name}"\n'
-            graph += component.to_dot_graph(initialize=False)
-        if initialize:
-            graph += "}\n"
-        return graph
+        from pvm.fields.dot_graph import display_dot_graph  # noqa: PLC0415
 
-    def dot_representation(self) -> str:
-        """
-        Generate a representation of the field as a node in the graphviz dot graph.
-
-        Returns:
-            str: node defintion for the field.
-
-        """
-        return f"""{self.name} [
-            label=<{self.dot_label}>
-            shape={self.dot_shape}
-        ]
-        """
-
-    @property
-    def dot_label(self) -> str:
-        """
-        Get the label of the node in the graphviz dot graph.
-
-        Returns:
-            str: label of the node
-
-        """
-        return f"""
-        <table border="0" cellborder="0" cellspacing="0" cellpadding="4">
-			<tr> <td> <b>{self.name} ({self.__class__.__name__})</b> </td> </tr>
-			<tr> <td> <b>Direct formula:</b> <i>{self.dot_formula}</i></td> </tr>
-            <tr> <td> <b>Implied formula:</b> <i>{self.calculated_definition_as_string}</i></td> </tr>
-		</table>
-        """
-
-    @property
-    def dot_formula(self) -> str:
-        """
-        Get the formula of the node in the graphviz dot graph.
-
-        Returns:
-            str: formula of the node
-
-        """
-        if isinstance(self, ReconciliationField):
-            return "None"
-        if self.definition is None:
-            return "None"
-        return str(self.definition)
-
-    @property
-    def calculated_definition_as_string(self) -> str:
-        """
-        Returns the calculated definition as a string.
-
-        Returns:
-            str: String representation of the calculated definition
-
-        """
-        if isinstance(self, ReconciliationField):
-            return "calculated as difference"
-        if isinstance(self, CompositeRateField):
-            return " + ".join([c.name for c in self.rates])
-        if self.components:
-            comps = ""
-            if self.other_components:
-                comps = " + ".join([c.name for c in self.other_components])
-            if self.rate and self.quantity:
-                return f"{self.rate.name} * {self.quantity.name}" + (f" + ({comps})" if comps else "")
-            return comps
-        return "None"
+        return display_dot_graph(self, dpi=dpi, size=size)
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -296,7 +222,6 @@ class Field(BaseField):
     """Field class for simple fields."""
 
     reconcile: bool = True
-    dot_shape: str = "rectangle"
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -304,7 +229,6 @@ class ReconciliationField(BaseField):
     """Field class for reconciliation fields."""
 
     reconcile: bool = False
-    dot_shape: str = "plaintext"
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -312,7 +236,6 @@ class RateField(BaseField):
     """Field class for rate fields."""
 
     reconcile: bool = False
-    dot_shape: str = "ellipse"
 
     def _validate_components(self) -> None:
         super()._validate_components()
@@ -326,7 +249,6 @@ class QuantityField(BaseField):
     """Field class for quantity fields."""
 
     reconcile: bool = False
-    dot_shape: str = "cylinder"
 
     def _validate_components(self) -> None:
         super()._validate_components()
