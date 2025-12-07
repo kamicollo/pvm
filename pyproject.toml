@@ -120,5 +120,5 @@ exclude = ["**/node_modules",
 ]
 
 [[tool.mypy.overrides]]
-module = ["ibis.*"]
+module = ["ibis.*", "graphviz.*"]
 follow_untyped_imports = true
