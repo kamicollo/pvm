@@ -3,13 +3,13 @@ import polars as pl
 import pytest
 from ibis import _
 from polars.testing import assert_frame_equal
-from pvm.fields import Field
+from pvm.measures import Measure
 from pvm.pvm import PVM
 
 
 def test_correctness_country_sku(
     sales_dataset: ibis.Table,
-    revenue_graph: Field,
+    revenue_graph: Measure,
     effects_by_country_sku: pl.DataFrame,
 ):
     """Tests basic correctness of the PVM calculation for country-sku hierarchy."""
@@ -37,7 +37,7 @@ def test_correctness_country_sku(
 
 def test_aggregation_correctness_new_discontinued(
     sales_dataset: ibis.Table,
-    revenue_graph: Field,
+    revenue_graph: Measure,
     effects_by_customer_sku: pl.DataFrame,
 ):
     """Tests correctness of the PVM calculation with new/discontinued items."""
@@ -65,7 +65,7 @@ def test_aggregation_correctness_new_discontinued(
 
 def test_dataset_with_composite_rate(
     sales_dataset: ibis.Table,
-    composite_profit_graph: Field,
+    composite_profit_graph: Measure,
     composite_profit_effects_by_country_sku: pl.DataFrame,
 ):
     """Tests correctness of calculations when a graph includes a composite rate field."""
@@ -95,7 +95,7 @@ def test_dataset_with_composite_rate(
 @pytest.mark.skip("Incomplete")
 def test_dataset_with_composite_rate_and_nested_children(
     sales_dataset: ibis.Table,
-    composite_profit_graph: Field,
+    composite_profit_graph: Measure,
     composite_profit_effects_by_country_sku: pl.DataFrame,
 ):
     pass
@@ -103,7 +103,7 @@ def test_dataset_with_composite_rate_and_nested_children(
 
 def test_dataset_with_parent_simple(
     sales_dataset: ibis.Table,
-    profit_graph: Field,
+    profit_graph: Measure,
     profit_effects_by_country_sku: pl.DataFrame,
 ):
     """Tests correctness of calculations when the top level field is a simple one."""
@@ -133,7 +133,7 @@ def test_dataset_with_parent_simple(
 
 def test_correctness_quantity_components_new_discontinued(
     sales_dataset: ibis.Table,
-    cost_graph: Field,
+    cost_graph: Measure,
     cost_effects_by_customer_sku: pl.DataFrame,
 ):
     """Tests correctness of calculations when the graph includes a volume field that has components."""
@@ -162,7 +162,7 @@ def test_correctness_quantity_components_new_discontinued(
 
 def test_aggregation_with_quantity_components(
     sales_dataset: ibis.Table,
-    cost_graph: Field,
+    cost_graph: Measure,
     cost_effects_by_country_sku: pl.DataFrame,
 ):
     """Tests correctness of calculations when a graph includes a volume field that has components."""

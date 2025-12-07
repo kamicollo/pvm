@@ -3,20 +3,22 @@
 import ibis
 from ibis import deferred as col
 
-from pvm.fields import CompositeRateField, Field, QuantityField, RateField
+from pvm.measures import CompositeRateMeasure, Measure, QuantityMeasure, RateMeasure
 
 
-def change_field(field: Field | QuantityField | RateField | CompositeRateField, start: str, end: str) -> ibis.Deferred:
+def change_field(
+    field: Measure | QuantityMeasure | RateMeasure | CompositeRateMeasure, start: str, end: str
+) -> ibis.Deferred:
     """
-    Derive change expression for a field.
+    Derive change expression for a measure.
 
     Args:
-        field (Field | QuantityField | RateField | CompositeRateField): The field to derive changes for.
+        field (Measure | QuantityMeasure | RateMeasure | CompositeRateMeasure): The measure to derive changes for.
         start (str): The start period.
         end (str): The end period.
 
     Returns:
-        ibis.Deferred: Expression for the change field.
+        ibis.Deferred: Expression for the change measure.
 
     """
     return (col[field.period_column(end)] - col[field.period_column(start)]).name(
@@ -25,8 +27,8 @@ def change_field(field: Field | QuantityField | RateField | CompositeRateField, 
 
 
 def _define_rate_and_quantity_effects(
-    rate: RateField,
-    quantity: QuantityField,
+    rate: RateMeasure,
+    quantity: QuantityMeasure,
     periods: tuple[str, str],
     expr_prefix: float | ibis.Deferred,
     volume_effect_override: ibis.Deferred | None,
@@ -35,8 +37,8 @@ def _define_rate_and_quantity_effects(
     Define rate/quantity calculations and propagates them in the graph.
 
     Args:
-        rate (RateField): rate field
-        quantity (QuantityField): quantity field
+        rate (RateMeasure): rate measure
+        quantity (QuantityMeasure): quantity measure
         periods (tuple[str, str]): tuple of start/end periods
         expr_prefix (float | ibis.Deferred): multiplier to apply to effects (defined upstream in the graph)
         volume_effect_override (ibis.Deferred | None): volume effect override (defined upstream in the graph)
@@ -80,8 +82,8 @@ def _define_rate_and_quantity_effects(
         .name(rate.effect_column(start)),
     )
 
-    # if the rate field is composite, also add individual component effects
-    if isinstance(rate, CompositeRateField):
+    # if the rate measure is composite, also add individual component effects
+    if isinstance(rate, CompositeRateMeasure):
         for rate_component in rate.rates:
             rate_component_start = col[rate_component.name + "_" + start]
             rate_component_end = col[rate_component.name + "_" + end]
@@ -120,8 +122,8 @@ def _define_rate_and_quantity_effects(
                 None,
             ),
         )
-    # propagate recursively to any components of composite rate fields
-    if isinstance(rate, CompositeRateField):
+    # propagate recursively to any components of composite rate measures
+    if isinstance(rate, CompositeRateMeasure):
         for r in rate.rates:
             if r.components:
                 effects.extend(
@@ -138,24 +140,24 @@ def _define_rate_and_quantity_effects(
 
 
 def derive_effect_fields(
-    field: RateField | QuantityField | Field,
+    field: RateMeasure | QuantityMeasure | Measure,
     start: str,
     end: str,
     expr_prefix: float | ibis.Deferred = 1.0,
     volume_effect_override: ibis.Deferred | None = None,
 ) -> list[ibis.Deferred]:
     """
-    Derive effect fields for a field.
+    Derive effect measures for a measure.
 
     Args:
-        field (RateField | QuantityField | Field): The field to derive effects for.
+        field (RateMeasure | QuantityMeasure | Measure): The measure to derive effects for.
         start (str): The start period.
         end (str): The end period.
         expr_prefix (int | ibis.Deferred, optional): The expression prefix. Defaults to 1.
         volume_effect_override (ibis.Deferred | None, optional): The effect override. Defaults to None.
 
     Returns:
-        list[ibis.Deferred]: The derived effect fields.
+        list[ibis.Deferred]: The derived effect measures.
 
     """
     fields = []

@@ -3,13 +3,13 @@ import polars as pl
 from ibis import _
 from polars.testing import assert_frame_equal, assert_frame_not_equal
 from pvm import PERIOD_COLUMN
-from pvm.fields import Field
+from pvm.measures import Measure
 from pvm.pvm import PVM
 
 
 def test_aggregation_correctness_country_sku(
     sales_dataset: ibis.Table,
-    revenue_graph: Field,
+    revenue_graph: Measure,
     aggregate_by_country_sku: pl.DataFrame,
 ):
     pvm = (
@@ -44,7 +44,7 @@ def test_aggregation_correctness_country_sku(
 
 def test_aggregation_correctness_country_sku_profit_graph(
     sales_dataset: ibis.Table,
-    profit_graph: Field,
+    profit_graph: Measure,
     aggregate_by_country_sku: pl.DataFrame,
 ):
     pvm = (
@@ -75,7 +75,7 @@ def test_aggregation_correctness_country_sku_profit_graph(
 
 
 def test_aggregation_correctness_no_hierarchy(
-    sales_dataset: ibis.Table, revenue_graph: Field, aggregate: pl.DataFrame
+    sales_dataset: ibis.Table, revenue_graph: Measure, aggregate: pl.DataFrame
 ):
     pvm = PVM().set_data(sales_dataset).set_periods(_.year, ["2020", "2021"])
 
@@ -100,21 +100,21 @@ def test_aggregation_correctness_no_hierarchy(
 
 def test_graph_resets_aggregation(sales_dataset: ibis.Table):
     pvm = PVM().set_data(sales_dataset)
-    pvm.set_graph(Field("revenue", definition=_.revenue.sum())).set_periods(
+    pvm.set_graph(Measure("revenue", definition=_.revenue.sum())).set_periods(
         _.year, ["2020", "2021"]
     )
 
     p1 = pvm.aggregated.to_polars()
 
     # reset the graph
-    pvm.set_graph(Field("cost", definition=_.cost.sum()))
+    pvm.set_graph(Measure("cost", definition=_.cost.sum()))
     p2 = pvm.aggregated.to_polars()
     assert_frame_not_equal(p1, p2)
 
 
 def test_data_resets_aggregation(sales_dataset: ibis.Table):
     pvm = PVM().set_data(sales_dataset)
-    pvm.set_graph(Field("revenue", definition=_.revenue.sum())).set_periods(
+    pvm.set_graph(Measure("revenue", definition=_.revenue.sum())).set_periods(
         _.year, ["2020", "2021"]
     )
 
@@ -129,7 +129,7 @@ def test_data_resets_aggregation(sales_dataset: ibis.Table):
 
 def test_period_resets_aggregation(sales_dataset: ibis.Table):
     pvm = PVM().set_data(sales_dataset)
-    pvm.set_graph(Field("revenue", definition=_.revenue.sum())).set_periods(
+    pvm.set_graph(Measure("revenue", definition=_.revenue.sum())).set_periods(
         _.year, ["2020", "2021"]
     )
 
@@ -143,7 +143,7 @@ def test_period_resets_aggregation(sales_dataset: ibis.Table):
 
 def test_hierarchy_resets_aggregation(sales_dataset: ibis.Table):
     pvm = PVM().set_data(sales_dataset)
-    pvm.set_graph(Field("revenue", definition=_.revenue.sum())).set_periods(
+    pvm.set_graph(Measure("revenue", definition=_.revenue.sum())).set_periods(
         _.year, ["2020", "2021"]
     ).set_hierarchy([_.country])
 

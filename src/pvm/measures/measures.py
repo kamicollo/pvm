@@ -1,4 +1,4 @@
-"""Base field class for PVM."""
+"""Base measure class for PVM."""
 
 from __future__ import annotations
 
@@ -12,78 +12,78 @@ from pvm import CHANGE_COLUMN, EFFECT_COLUMN
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
-class BaseField(ABC):
+class BaseMeasure(ABC):
     """
-    Base class for fields.
+    Base class for measures.s.
 
     Raises:
-        ValueError: Errors raised when field configuration is invalid
+        ValueError: Errors raised when measure configuration is invalid
 
     Returns:
-        BaseField: _description_
+        BaseMeasure: _description_
 
     """
 
     name: str
     reconcile: bool
-    components: list[Field | RateField | QuantityField | ReconciliationField] = dataclasses.field(
+    components: list[Measure | RateMeasure | QuantityMeasure | ReconciliationMeasure] = dataclasses.field(
         default_factory=list,
         compare=False,
     )
     definition: Deferred | None = None
 
     @property
-    def _rate_components(self) -> list[RateField]:
-        return [c for c in self.components if isinstance(c, RateField)]
+    def _rate_components(self) -> list[RateMeasure]:
+        return [c for c in self.components if isinstance(c, RateMeasure)]
 
     @property
-    def _quantity_components(self) -> list[QuantityField]:
-        return [c for c in self.components if isinstance(c, QuantityField)]
+    def _quantity_components(self) -> list[QuantityMeasure]:
+        return [c for c in self.components if isinstance(c, QuantityMeasure)]
 
     @property
-    def other_components(self) -> list[Field]:
+    def other_components(self) -> list[Measure]:
         """
-        Retrieves all components that are not rate or quantity fields.
+        Retrieves all components that are not rate or quantity measures.
 
         Returns:
-            list[Field]: List of components that are not rate or quantity fields
+            list[Measure]: List of components that are not rate or quantity measures
 
         """
-        return [c for c in self.components if isinstance(c, Field)]
+        return [c for c in self.components if isinstance(c, Measure)]
 
     @property
-    def rate(self) -> RateField | None:
+    def rate(self) -> RateMeasure | None:
         """
-        Retrieves the rate component of the field.
+        Retrieves the rate component of the measure.
 
         Returns:
-            RateField | None: Rate component of the field
+            RateMeasure | None: Rate component of the measure
 
         """
         return next(iter(self._rate_components), None)
 
     @property
-    def quantity(self) -> QuantityField | None:
+    def quantity(self) -> QuantityMeasure | None:
         """
-        Retrieves the quantity component of the field.
+        Retrieves the quantity component of the measure.
 
         Returns:
-            QuantityField | None: Quantity component of the field
+            QuantityMeasure | None: Quantity component of the measure
 
         """
         return next(iter(self._quantity_components), None)
 
     @property
-    def reconciliation_field(self) -> ReconciliationField | None:
+    def reconciliation_field(self) -> ReconciliationMeasure | None:
         """
-        Retrieves the reconciliation field of the field.
+        Retrieves the reconciliation measure of the measure.
 
         Returns:
-            Field | None: Reconciliation field of the field
+            ReconciliationMeasure | None: Reconciliation measure of the measure
 
         """
         return next(
-            (c for c in self.components if isinstance(c, ReconciliationField)),
+            (c for c in self.components if isinstance(c, ReconciliationMeasure)),
             None,
         )
 
@@ -107,57 +107,57 @@ class BaseField(ABC):
     @property
     def formula(self) -> Deferred:
         """
-        Returns the formula for the field.
+        Returns the formula for the measure.
 
         Returns:
-            Deferred: Formula for the field is either the definition or the calculated definition.
+            Deferred: Formula for the measure is either the definition or the calculated definition.
 
         """
         if self.definition is not None:
             return self.definition
         if self.calculated_definition is not None:
             return self.calculated_definition
-        raise ValueError(f"Field {self.name} has no definition or components")  # pragma: no cover
+        raise ValueError(f"Measure {self.name} has no definition or components")  # pragma: no cover
 
     def _validate_components(self) -> None:
         if not self.components and self.definition is None:
             raise ValueError(
-                f"Field '{self.name}' must have either components or a definition",
+                f"Measure '{self.name}' must have either components or a definition",
             )
         if len(self._rate_components) > 1:
             raise ValueError(
-                f"Field {self.name} has multiple rate components which is not supported",
+                f"Measure {self.name} has multiple rate components which is not supported",
             )
         if len(self._quantity_components) > 1:
             raise ValueError(
-                f"Field {self.name} has multiple quantity components which is not supported",
+                f"Measure {self.name} has multiple quantity components which is not supported",
             )
         if len(self._rate_components) == 1 and len(self._quantity_components) == 0:
-            raise ValueError(f"Field {self.name} is missing a quantity component")
+            raise ValueError(f"Measure {self.name} is missing a quantity component")
         if len(self._rate_components) == 0 and len(self._quantity_components) == 1:
-            raise ValueError(f"Field {self.name} is missing a rate component")
+            raise ValueError(f"Measure {self.name} is missing a rate component")
 
     def __post_init__(self) -> None:
-        """Validate the field configuration and adds reconciliation field if necessary."""
+        """Validate the measure configuration and adds reconciliation measure if necessary."""
         self._validate_components()
         self._add_reconciliation_field()
 
     def _add_reconciliation_field(self) -> None:
-        """Add a reconciliation field to the field if it has components and a definition."""
+        """Add a reconciliation measure to the measure if it has components and a definition."""
         if self.rate and self.quantity and self.definition is not None and self.reconcile:
             self.components.append(
-                ReconciliationField(
+                ReconciliationMeasure(
                     name=self.name + "_rec",
                     definition=((self.definition) - self.calculated_definition),
                 ),
             )
 
-    def get_flattened_graph(self) -> MutableSequence[RateField | Field | QuantityField]:
+    def get_flattened_graph(self) -> MutableSequence[RateMeasure | Measure | QuantityMeasure]:
         """
-        Get a flattened graph of the field and its components.
+        Get a flattened graph of the measure and its components.
 
         Returns:
-            list[BaseField]: List of fields in the graph
+            list[BaseMeasure]: List of measures in the graph
 
         """
         flat_graph: MutableSequence = [self]
@@ -206,80 +206,80 @@ class BaseField(ABC):
 
     def display(self, dpi: int = 96, size: tuple[int, int] | None = None) -> None:
         """
-        Display a graphviz representation of the field and its components.
+        Display a graphviz representation of the measure and its components.
 
         Returns:
             None
 
         """
-        from pvm.fields.dot_graph import display_dot_graph  # noqa: PLC0415
+        from pvm.measures.dot_graph import display_dot_graph  # noqa: PLC0415
 
         return display_dot_graph(self, dpi=dpi, size=size)
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
-class Field(BaseField):
-    """Field class for simple fields."""
+class Measure(BaseMeasure):
+    """Measure class for simple measures."""
 
     reconcile: bool = True
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
-class ReconciliationField(BaseField):
-    """Field class for reconciliation fields."""
+class ReconciliationMeasure(BaseMeasure):
+    """Measure class for reconciliation measures."""
 
     reconcile: bool = False
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
-class RateField(BaseField):
-    """Field class for rate fields."""
-
-    reconcile: bool = False
-
-    def _validate_components(self) -> None:
-        super()._validate_components()
-        # we do not allow fields that are of Rate type to have simple components
-        if any(isinstance(c, Field) for c in self.components):
-            raise ValueError(f"Field {self.name} of type {self.__class__.__name__} cannot have simple components")
-
-
-@dataclasses.dataclass(frozen=True, eq=True)
-class QuantityField(BaseField):
-    """Field class for quantity fields."""
+class RateMeasure(BaseMeasure):
+    """Measure class for rate measures."""
 
     reconcile: bool = False
 
     def _validate_components(self) -> None:
         super()._validate_components()
-        # we do not allow fields that are of Quantity type to have simple components
-        if any(isinstance(c, Field) for c in self.components):
-            raise ValueError(f"Field {self.name} of type {self.__class__.__name__} cannot have simple components")
+        # we do not allow measures that are of Rate type to have simple components
+        if any(isinstance(c, Measure) for c in self.components):
+            raise ValueError(f"Measure {self.name} of type {self.__class__.__name__} cannot have simple components")
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
-class CompositeRateField(RateField):
-    """A field that combines multiple rate components."""
+class QuantityMeasure(BaseMeasure):
+    """Measure class for quantity measures."""
+
+    reconcile: bool = False
+
+    def _validate_components(self) -> None:
+        super()._validate_components()
+        # we do not allow measures that are of Quantity type to have simple components
+        if any(isinstance(c, Measure) for c in self.components):
+            raise ValueError(f"Measure {self.name} of type {self.__class__.__name__} cannot have simple components")
+
+
+@dataclasses.dataclass(frozen=True, eq=True)
+class CompositeRateMeasure(RateMeasure):
+    """A measure that combines multiple rate components."""
 
     @property
     def rate(self) -> None:
-        """CompositeRateField does not have a single rate component."""
+        """CompositeRateMeasure does not have a single rate component."""
         return None
 
     @property
-    def rates(self) -> list[RateField]:
+    def rates(self) -> list[RateMeasure]:
         """List of rate components."""
         return self.components  # type: ignore
 
     def _validate_components(self) -> None:
         if not self.components:
-            raise ValueError(f"CompositeRateField '{self.name}' must have at least one rate component")
+            raise ValueError(f"CompositeRateMeasure '{self.name}' must have at least one rate component")
 
         if self.definition is not None:
-            raise ValueError(f"CompositeRateField '{self.name}' cannot have a direct definition")
+            raise ValueError(f"CompositeRateMeasure '{self.name}' cannot have a direct definition")
 
-        if not all(isinstance(c, RateField) for c in self.components):
-            raise ValueError(f"CompositeRateField '{self.name}' can only have RateField components")
+        if not all(isinstance(c, RateMeasure) for c in self.components):
+            raise ValueError(f"CompositeRateMeasure '{self.name}' can only have RateMeasure components")
 
     @property
     def calculated_definition(self) -> Deferred:

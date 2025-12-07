@@ -3,7 +3,7 @@ import ibis
 import polars as pl
 import pytest
 from ibis import _
-from pvm.fields import CompositeRateField, Field, QuantityField, RateField
+from pvm.measures import CompositeRateMeasure, Measure, QuantityMeasure, RateMeasure
 
 
 @pytest.fixture(scope="module")
@@ -53,17 +53,17 @@ def aggregate() -> pl.DataFrame:
 
 
 @pytest.fixture(scope="module")
-def revenue_graph() -> Field:
-    price = RateField(
+def revenue_graph() -> Measure:
+    price = RateMeasure(
         "unit_price",
         definition=(_.volume * _.unit_price).sum() / _.volume.sum(),
         reconcile=True,
         components=[
-            QuantityField(
+            QuantityMeasure(
                 "price_in_lc",
                 definition=(_.volume * _.price_in_lc).sum() / _.volume.sum(),
             ),
-            RateField(
+            RateMeasure(
                 "fx_rate",
                 definition=(_.volume * _.fx_rate * _.price_in_lc).sum()
                 / (_.price_in_lc * _.volume).sum(),
@@ -71,41 +71,41 @@ def revenue_graph() -> Field:
         ],
     )
 
-    return Field(
+    return Measure(
         "revenue",
         definition=_.revenue.sum(),
         components=[
             price,
-            QuantityField(
+            QuantityMeasure(
                 "volume",
                 definition=_.volume.sum(),
             ),
-            Field("flat_fee", definition=_.flat_fee.sum()),
+            Measure("flat_fee", definition=_.flat_fee.sum()),
         ],
     )
 
 
 @pytest.fixture
-def cost_graph() -> Field:
-    cost = Field(
+def cost_graph() -> Measure:
+    cost = Measure(
         "cost",
         definition=-_.cost.sum(),
         components=[
-            QuantityField(
+            QuantityMeasure(
                 "cost_volume",
                 definition=_.volume.sum(),
                 components=[
-                    RateField(
+                    RateMeasure(
                         "yield_rate",
                         definition=_.volume.sum() / _.raw_material.sum(),
                     ),
-                    QuantityField(
+                    QuantityMeasure(
                         "raw_material",
                         definition=_.raw_material.sum(),
                     ),
                 ],
             ),
-            RateField(
+            RateMeasure(
                 "unit_cost",
                 definition=(-_.unit_cost * _.volume).sum() / _.volume.sum(),
             ),
@@ -116,8 +116,8 @@ def cost_graph() -> Field:
 
 
 @pytest.fixture
-def profit_graph(revenue_graph: Field, cost_graph: Field) -> Field:
-    return Field(
+def profit_graph(revenue_graph: Measure, cost_graph: Measure) -> Measure:
+    return Measure(
         "profit",
         definition=_.revenue.sum() - _.cost.sum(),
         components=[revenue_graph, cost_graph],
@@ -125,8 +125,8 @@ def profit_graph(revenue_graph: Field, cost_graph: Field) -> Field:
 
 
 @pytest.fixture
-def composite_profit_graph(revenue_graph: Field, cost_graph: Field) -> Field:
-    composite_rate = CompositeRateField(
+def composite_profit_graph(revenue_graph: Measure, cost_graph: Measure) -> Measure:
+    composite_rate = CompositeRateMeasure(
         "unit_profit",
         components=[
             revenue_graph.rate,  # type: ignore
@@ -137,7 +137,7 @@ def composite_profit_graph(revenue_graph: Field, cost_graph: Field) -> Field:
     other_components = revenue_graph.other_components + cost_graph.other_components
     components = [composite_rate, revenue_graph.quantity] + other_components
 
-    return Field(
+    return Measure(
         "profit",
         definition=_.revenue.sum() - _.cost.sum(),
         components=components,  # type: ignore

@@ -10,8 +10,8 @@ import ibis
 from ibis import Deferred
 
 from pvm import PERIOD_COLUMN
-from pvm.fields import Field
 from pvm.formulas import change_field, derive_effect_fields
+from pvm.measures import Measure
 
 
 class CalculationMethod(Enum):
@@ -31,7 +31,7 @@ class PVM:
     data: ibis.Table | None
     period_expression: ibis.Deferred | None
     period_order: list[str] | None
-    graph: Field | None
+    graph: Measure | None
 
     def __init__(
         self,
@@ -69,12 +69,12 @@ class PVM:
         self.reset_aggregated()
         return self
 
-    def set_graph(self, graph: Field) -> Self:
+    def set_graph(self, graph: Measure) -> Self:
         """
         Set the calculation graph for the instance.
 
         Args:
-            graph (Field): The graph to be set.
+            graph (Measure): The graph to be set.
 
         Returns:
             Self: The instance with the updated graph attribute.

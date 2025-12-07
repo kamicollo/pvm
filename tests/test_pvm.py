@@ -2,7 +2,7 @@ import ibis
 import polars as pl
 from polars.testing import assert_frame_equal
 from pvm import PERIOD_COLUMN
-from pvm.fields import Field, QuantityField, RateField
+from pvm.measures import Measure, QuantityMeasure, RateMeasure
 from pvm.pvm import PVM
 
 
@@ -25,9 +25,9 @@ def test_pvm_setter_methods():
     t = con.table("df")
 
     # Create components
-    rate = RateField(name="rate", definition=ibis.deferred.rate)
-    qty = QuantityField(name="qty", definition=ibis.deferred.qty)
-    field = Field(name="total", components=[rate, qty])
+    rate = RateMeasure(name="rate", definition=ibis.deferred.rate)
+    qty = QuantityMeasure(name="qty", definition=ibis.deferred.qty)
+    field = Measure(name="total", components=[rate, qty])
 
     # Test method chaining
     pvm = (
@@ -55,18 +55,18 @@ def test_pvm_with_hierarchy():
     con = ibis.polars.connect({"df": df})
     t = con.table("df")
 
-    rate = RateField(
+    rate = RateMeasure(
         name="rate",
         definition=(ibis.deferred.qty * ibis.deferred.rate).sum()
         / ibis.deferred.qty.sum(),
     )
-    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
-    field = Field(name="revenue", components=[rate, qty])
+    qty = QuantityMeasure(name="qty", definition=ibis.deferred.qty.sum())
+    measure = Measure(name="revenue", components=[rate, qty])
 
     pvm = (
         PVM()
         .set_data(t)
-        .set_graph(field)
+        .set_graph(measure)
         .set_periods(ibis.deferred.period, ["2023", "2024"])
         .set_hierarchy([ibis.deferred.region])
     )
@@ -96,9 +96,9 @@ def test_pvm_aggregation():
     con = ibis.polars.connect({"df": df})
     t = con.table("df")
 
-    rate = RateField(name="rate", definition=ibis.deferred.rate.sum())
-    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
-    field = Field(name="total", components=[rate, qty])
+    rate = RateMeasure(name="rate", definition=ibis.deferred.rate.sum())
+    qty = QuantityMeasure(name="qty", definition=ibis.deferred.qty.sum())
+    field = Measure(name="total", components=[rate, qty])
 
     pvm = (
         PVM()
@@ -133,9 +133,9 @@ def test_pvm_aggregation_with_reconciliation_field():
     con = ibis.polars.connect({"df": df})
     t = con.table("df")
 
-    rate = RateField(name="rate", definition=ibis.deferred.rate.sum())
-    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
-    field = Field(
+    rate = RateMeasure(name="rate", definition=ibis.deferred.rate.sum())
+    qty = QuantityMeasure(name="qty", definition=ibis.deferred.qty.sum())
+    field = Measure(
         name="total", definition=ibis.deferred.total.sum(), components=[rate, qty]
     )
 
@@ -172,9 +172,9 @@ def test_pvm_aggregation_with_reconciliation_difference():
     con = ibis.polars.connect({"df": df})
     t = con.table("df")
 
-    rate = RateField(name="rate", definition=ibis.deferred.rate.sum())
-    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
-    field = Field(
+    rate = RateMeasure(name="rate", definition=ibis.deferred.rate.sum())
+    qty = QuantityMeasure(name="qty", definition=ibis.deferred.qty.sum())
+    field = Measure(
         name="total", definition=ibis.deferred.total.sum(), components=[rate, qty]
     )
 
@@ -269,18 +269,18 @@ def test_pvm_get_wide_table():
     con = ibis.polars.connect({"df": df})
     t = con.table("df")
 
-    rate = RateField(
+    rate = RateMeasure(
         name="rate",
         definition=(ibis.deferred.qty * ibis.deferred.rate).sum()
         / ibis.deferred.qty.sum(),
     )
-    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
-    field = Field(name="revenue", components=[rate, qty])
+    qty = QuantityMeasure(name="qty", definition=ibis.deferred.qty.sum())
+    measure = Measure(name="revenue", components=[rate, qty])
 
     pvm = (
         PVM()
         .set_data(t)
-        .set_graph(field)
+        .set_graph(measure)
         .set_periods(ibis.deferred.period, ["2023", "2024"])
         .set_hierarchy([ibis.deferred.region])
     )
@@ -325,7 +325,7 @@ def test_pvm_get_wide_table_one_column():
 
     con = ibis.polars.connect({"df": df})
     t = con.table("df")
-    qty = QuantityField(name="qty", definition=ibis.deferred.qty.sum())
+    qty = QuantityMeasure(name="qty", definition=ibis.deferred.qty.sum())
 
     pvm = (
         PVM()
@@ -380,7 +380,7 @@ def test_pvm_calculate_effects_no_period_order():
     pvm = (
         PVM()
         .set_data(t)
-        .set_graph(Field(name="total", definition=ibis.deferred.qty.sum()))
+        .set_graph(Measure(name="total", definition=ibis.deferred.qty.sum()))
     )
     try:
         pvm.calculate_effects()
@@ -396,7 +396,7 @@ def test_pvm_calculate_effects_one_period():
         PVM()
         .set_data(t)
         .set_periods(ibis.deferred.period, ["2023"])
-        .set_graph(Field(name="total", definition=ibis.deferred.qty.sum()))
+        .set_graph(Measure(name="total", definition=ibis.deferred.qty.sum()))
     )
     assert pvm.aggregated.to_polars() is not None
     assert pvm.get_wide_table().to_polars() is not None

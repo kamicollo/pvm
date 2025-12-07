@@ -29,7 +29,7 @@ plugins:
 
 nav:
   - API Reference:
-    - Measures: api_reference/fields.md
+    - Measures: api_reference/measures.md
 
 watch:
   - src
