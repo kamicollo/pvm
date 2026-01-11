@@ -243,7 +243,10 @@ def to_dot_graph(
 
 
 def display_dot_graph(
-    measure: BaseMeasure, dpi: int = 96, size: tuple[int, int] | None = None, show_implied_formulas: bool = False
+    measure: BaseMeasure,
+    dpi: int = 96,
+    size: tuple[int, int] | None = None,
+    show_implied_formulas: bool = False,  # noqa: FBT001, FBT002
 ) -> None:
     """Display the dot graph in a Jupyter notebook."""
     from graphviz import Source  # noqa: PLC0415
