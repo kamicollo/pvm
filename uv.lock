@@ -2052,7 +2052,7 @@ wheels = [
 
 [[package]]
 name = "pvm"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "altair" },
@@ -2068,13 +2068,17 @@ dependencies = [
     { name = "pins" },
     { name = "polars" },
     { name = "pygments" },
-    { name = "pygraphviz" },
     { name = "pyperclip" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
     { name = "ty" },
+]
+
+[package.optional-dependencies]
+all = [
+    { name = "pygraphviz" },
 ]
 
 [package.metadata]
@@ -2092,7 +2096,7 @@ requires-dist = [
     { name = "pins", specifier = ">=0.8.6" },
     { name = "polars", specifier = ">=1.12.0" },
     { name = "pygments", specifier = ">=2.18.0" },
-    { name = "pygraphviz", specifier = ">=1.14" },
+    { name = "pygraphviz", marker = "extra == 'all'", specifier = ">=1.14" },
     { name = "pyperclip", specifier = ">=1.9.0" },
     { name = "pyright", specifier = ">=1.1.389" },
     { name = "pytest", specifier = ">=8.3.3" },
@@ -2100,6 +2104,7 @@ requires-dist = [
     { name = "ruff", specifier = ">=0.7.3" },
     { name = "ty", specifier = ">=0.0.1a29" },
 ]
+provides-extras = ["all"]
 
 [[package]]
 name = "pyarrow"
