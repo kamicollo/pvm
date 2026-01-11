@@ -1,7 +1,7 @@
 """Tests for dot graph formatting functions."""
 
 import pytest
-from pvm.measures.dot_graph import format_formula_with_linebreaks
+from pvm.measures.visualization.formatting import format_recursive
 
 
 class TestFormatFormulaWithLinebreaks:
@@ -102,6 +102,89 @@ class TestFormatFormulaWithLinebreaks:
                 ) + y
                 """,
             ),
+            # Failing test case from real usage
+            (
+                "(_.revenue.sum() - ((((_.volume * _.unit_price).sum() / _.volume.sum()) * _.volume.sum()) + (0 + _.flat_fee.sum())))",
+                50,
+                """
+(
+    _.revenue.sum() -
+    (
+        (
+            (
+                (_.volume * _.unit_price).sum() / _.volume.sum()
+            ) * _.volume.sum()
+        ) + (0 + _.flat_fee.sum())
+    )
+)
+                """,
+            ),
+            # Negation prefix
+            (
+                "-a + b + c",
+                50,
+                """
+                -a + b + c
+                """,
+            ),
+            # Method call on parenthesized expression
+            (
+                "(a + b).sum() + c",
+                50,
+                """
+                (a + b).sum() + c
+                """,
+            ),
+            # Property access chain
+            (
+                "_.foo.bar + _.baz.qux",
+                50,
+                """
+                _.foo.bar + _.baz.qux
+                """,
+            ),
+            # Invalid/unparseable input - returns as-is
+            (
+                "((( incomplete",
+                50,
+                """
+                ((( incomplete
+                """,
+            ),
+            # Exactly at max_len boundary (9 chars fits, 8 would break)
+            (
+                "a + b + c",
+                9,
+                """
+                a + b + c
+                """,
+            ),
+            # Just under max_len forces a break
+            (
+                "a + b + c",
+                8,
+                """
+                a + b +
+                c
+                """,
+            ),
+            # Only multiplicative operators (long chain)
+            (
+                "a * b * c * d * e * f * g * h",
+                20,
+                """
+                a * b * c * d * e *
+                f * g * h
+                """,
+            ),
+            # Negated parenthesized expression
+            (
+                "-(a + b) + c",
+                50,
+                """
+                -(a + b) + c
+                """,
+            ),
         ],
     )
     def test_format_formula_with_linebreaks(
@@ -110,7 +193,5 @@ class TestFormatFormulaWithLinebreaks:
         """Test formula formatting with various inputs and line length limits."""
         import textwrap
 
-        result = format_formula_with_linebreaks(
-            formula, max_line_length=max_line_length
-        )
+        result = format_recursive(formula, max_len=max_line_length)
         assert result == textwrap.dedent(expected).strip()

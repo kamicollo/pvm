@@ -204,17 +204,24 @@ class BaseMeasure(ABC):
         """
         return self.name + EFFECT_COLUMN + period
 
-    def display(self, dpi: int = 96, size: tuple[int, int] | None = None) -> None:
+    def display(
+        self, *, dpi: int = 96, size: tuple[int, int] | None = None, show_implied_formulas: bool = False
+    ) -> None:
         """
         Display a graphviz representation of the measure and its components.
+
+        Args:
+            dpi: Dots per inch for rendering (default: 96)
+            size: Graph size as (width, height) in inches
+            show_implied_formulas: Whether to show implied formulas in the graph (default: False)
 
         Returns:
             None
 
         """
-        from pvm.measures.dot_graph import display_dot_graph  # noqa: PLC0415
+        from pvm.measures.visualization.dot_graph import display_dot_graph  # noqa: PLC0415
 
-        return display_dot_graph(self, dpi=dpi, size=size)
+        return display_dot_graph(self, dpi=dpi, size=size, show_implied_formulas=show_implied_formulas)
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
