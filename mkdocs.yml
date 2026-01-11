@@ -1,0 +1,50 @@
+site_name: "My Library"
+
+theme:
+  name: "material"
+  custom_dir: docs/overrides
+  icon:
+    admonition:
+      tip: octicons/squirrel-16
+  features:
+    - content.action.edit
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+
+repo_url: https://github.com/kamicollo/pvm
+edit_uri: edit/main/docs/
+repo_name: kamicollo/pvm
+
+plugins:
+  - mkdocstrings
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - mkdocs-jupyter:     
+      execute: true      
+      remove_tag_config:
+        remove_input_tags:
+          - remove
+
+
+nav:
+  - API Reference:
+    - Measures: api_reference/measures.md
+
+watch:
+  - src
+
+extra:
+  social:
+    - icon: fontawesome/solid/signature
+      link: https://aurimas.eu
+
+markdown_extensions:
+  - tables
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences

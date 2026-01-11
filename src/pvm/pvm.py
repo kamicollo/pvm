@@ -1,10 +1,22 @@
+"""PVM class module."""
+
+from __future__ import annotations
+
 from enum import Enum
-import ibis
-from .fields import Field, BaseField
+from functools import cached_property
 from typing import Self
+
+import ibis
+from ibis import Deferred
+
+from pvm import PERIOD_COLUMN
+from pvm.formulas import change_field, derive_effect_fields
+from pvm.measures import Measure
 
 
 class CalculationMethod(Enum):
+    """Calculation methods for PVM."""
+
     CLASSIC = 0
     INVERSE = 1
     THREE_WAY = 2
@@ -12,64 +24,175 @@ class CalculationMethod(Enum):
 
 
 class PVM:
+    """PVM class."""
+
     method: CalculationMethod
-    hierarchy: list[ibis.Expr]
-    aggregated: ibis.Table | None
+    hierarchy: list[ibis.Deferred]
+    data: ibis.Table | None
+    period_expression: ibis.Deferred | None
+    period_order: list[str] | None
+    graph: Measure | None
 
     def __init__(
         self,
         method_to_use: CalculationMethod = CalculationMethod.CLASSIC,
-    ):
+        data: ibis.Table | None = None,
+    ) -> None:
+        """
+        Initialize the PVM class.
+
+        Args:
+            method_to_use (CalculationMethod, optional): The calculation method to use.
+                Defaults to CalculationMethod.CLASSIC.
+            data (ibis.Table | None, optional): The data source. Defaults to None.
+
+        """
         self.method = method_to_use
         self.hierarchy = []
-        self.aggregated = None
+        self.data = data
+        self.period_expression = None
+        self.period_order = None
+        self.graph = None
 
     def set_data(self, table: ibis.Table) -> Self:
+        """
+        Set the reference to the underlying data source.
+
+        Args:
+            table (ibis.Table): The data source.
+
+        Returns:
+            Self: The PVM instance.
+
+        """
         self.data = table
+        self.reset_aggregated()
         return self
 
-    def set_graph(self, graph: Field) -> Self:
+    def set_graph(self, graph: Measure) -> Self:
+        """
+        Set the calculation graph for the instance.
+
+        Args:
+            graph (Measure): The graph to be set.
+
+        Returns:
+            Self: The instance with the updated graph attribute.
+
+        """
         self.graph = graph
+        self.reset_aggregated()
         return self
 
-    def set_periods(self, definition: ibis.Expr, order=list[str]) -> Self:
-        self.period_expression = definition
+    def set_periods(self, definition: ibis.Deferred, order: list[str]) -> Self:
+        """
+        Set the period field definition and period order for the instance.
+
+        Args:
+            definition (ibis.Expr): An Ibis expression defining the period.
+            order (list[str]): A list of strings representing the order of periods.
+
+        Returns:
+            Self: The instance with updated period definition and order.
+
+        """
+        self.period_expression = definition.cast(str)
         self.period_order = order
+        self.reset_aggregated()
         return self
 
-    def set_hierarchy(self, hierarchy: list[ibis.Expr]) -> Self:
+    def set_hierarchy(self, hierarchy: list[ibis.Deferred]) -> Self:
+        """
+        Set the dimension hierarchy for the current instance.
+
+        Args:
+            hierarchy (list[ibis.Expr]): A list of ibis expressions representing the dimension hierarchy.
+
+        Returns:
+            Self: The instance with the updated hierarchy.
+
+        """
         self.hierarchy = hierarchy
+        self.reset_aggregated()
         return self
 
-    def get_graph_components(self) -> list[BaseField]:
-        return self.flattened_list
+    @cached_property
+    def aggregated(self) -> ibis.Table:
+        """
+        Aggregate the data based on the specified period and hierarchy.
 
-    def aggregate(self) -> ibis.Table:
-        """Foo bar"""
-        if self.aggregated is None:
-            self.aggregated = (
-                self.data.filter(self.period_expression.isin(list(self.period_order)))
-                .group_by(self.hierarchy + [self.period_expression.name("period")])
-                .aggregate(
-                    [
-                        f.definition.name(f.name)
-                        for f in self.graph.get_flattened_graph()
-                    ]
-                )
-                .pivot_wider(
-                    names=self.period_order,
-                    names_from=["period"],
-                    values_from=[f.name for f in self.graph.get_flattened_graph()],
-                    values_agg="sum",
-                    values_fill=0,
-                )
+        This method filters the data based on the period expression, groups it by the hierarchy and period,
+        and then aggregates it using the formulas defined in the graph. The result is then pivoted to a wider format
+        with periods as columns, aggregated values as cell values, and missing values filled with zero.
+
+        Returns:
+            ibis.Table: The aggregated and pivoted table.
+
+        """
+        if self.data is None:
+            raise ValueError("Data source is not set")
+        if self.period_expression is None:
+            raise ValueError("Period expression is not set")
+        if self.period_order is None:
+            raise ValueError("Period order is not set")
+        if self.graph is None:
+            raise ValueError("Calculation graph is not set")
+
+        period_filter = self.period_expression.isin(list(self.period_order))
+        group_by_fields = self.hierarchy + [self.period_expression.name(PERIOD_COLUMN)]
+        return (
+            self.data.filter(period_filter)  # type: ignore
+            .group_by(group_by_fields)  # type: ignore
+            .aggregate(
+                [f.formula.name(f.name) for f in self.graph.get_flattened_graph()],
             )
-        return self.aggregated
+        )
+
+    def reset_aggregated(self) -> None:
+        """Reset the aggregated table."""
+        if self.__dict__.get("aggregated") is not None:
+            del self.aggregated
+
+    def get_wide_table(self) -> ibis.Table:
+        """
+        Get the wide table with the aggregated data.
+
+        Returns:
+            ibis.Table: The wide table.
+
+        """
+        if self.graph is None:
+            raise ValueError("Calculation graph is not set")
+        return self.aggregated.pivot_wider(
+            names=self.period_order,
+            names_from=[PERIOD_COLUMN],
+            values_from=[f.name for f in self.graph.get_flattened_graph()],
+            values_agg="sum",
+            values_fill=0,
+        )
 
     def calculate_effects(self) -> ibis.Table:
-        t = self.aggregate()
+        """
+        Calculate the effects over the specified periods.
+
+        This method aggregates data and then iteratively mutates the table by deriving
+        effect fields for each consecutive period defined in `self.period_order`.
+
+        Returns:
+            ibis.Table: The table with the calculated effects.
+
+        """
+        if not self.period_order or len(self.period_order) < 2:  # noqa: PLR2004
+            raise ValueError("Calculation requires at least two periods")
+        if self.graph is None:
+            raise ValueError("Calculation graph is not set")
+        t = self.get_wide_table()
         for period_start, period_end in zip(
-            self.period_order[:-1], self.period_order[1:]
+            self.period_order[:-1],
+            self.period_order[1:],
+            strict=False,
         ):
-            t = t.mutate(self.graph.effect_fields(period_start, period_end))
+            effect_fields: list[Deferred] = derive_effect_fields(self.graph, period_start, period_end)
+            change_fields = [change_field(f, period_start, period_end) for f in self.graph.get_flattened_graph()]
+            t = t.mutate(change_fields).mutate(effect_fields)  # type: ignore
         return t

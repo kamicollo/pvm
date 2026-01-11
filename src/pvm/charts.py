@@ -1,10 +1,15 @@
+# ignore file for ruff and mypy
+# ruff: noqa
+# mypy: ignore-errors
+
+from collections.abc import Iterable
+
 import altair as alt
 import polars as pl
-from typing import Iterable, Tuple
 import polars.selectors as cs
 
 
-def waterfall(items: Iterable[Tuple[str, bool, float, str]], labelAngle=0) -> alt.Chart:
+def waterfall(items: Iterable[tuple[str, bool, float, str]], labelAngle=0) -> alt.Chart:
     graph_df = (
         pl.DataFrame(items, schema=["label", "is_total", "amount"])
         .with_columns(pl.col("amount").cumsum().alias("running_total"))
@@ -43,16 +48,20 @@ def waterfall(items: Iterable[Tuple[str, bool, float, str]], labelAngle=0) -> al
         [
             f"datum.value =='{value}' ? '{label}'"
             for value, label in zip(
-                graph_df["row_number"].to_list(), graph_df["label"].to_list()
+                graph_df["row_number"].to_list(),
+                graph_df["label"].to_list(),
+                strict=False,
             )
-        ]
+        ],
     )
 
     c = alt.Chart(graph_df).encode(
         alt.X(
             "row_number:N",
             axis=alt.Axis(
-                labelAngle=labelAngle, labelExpr=axis_labels + " : ''", title=""
+                labelAngle=labelAngle,
+                labelExpr=axis_labels + " : ''",
+                title="",
             ),
         ),
     )
