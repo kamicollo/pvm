@@ -525,6 +525,9 @@ class TestDisplayDotGraph:
 
     def test_display_dot_graph_calls_graphviz(self) -> None:
         """Test that display_dot_graph calls graphviz Source and IPython display."""
+        from unittest.mock import MagicMock, patch
+
+        from pvm.measures.visualization.dot_graph import display_dot_graph
 
         mock_source_instance = MagicMock()
         mock_source_class = MagicMock(return_value=mock_source_instance)
@@ -545,35 +548,6 @@ class TestDisplayDotGraph:
 
         # Verify display was called
         mock_display.assert_called_once_with(mock_source_instance)
-        """Test that display_dot_graph calls graphviz Source and IPython display."""
-        from unittest.mock import MagicMock, patch
-
-        from pvm.measures.visualization.dot_graph import display_dot_graph
-
-        mock_source_instance = MagicMock()
-        mock_source_class = MagicMock(return_value=mock_source_instance)
-        mock_display = MagicMock()
-        printed_content = []
-
-        with patch("graphviz.Source", mock_source_class), patch(
-            "IPython.display.display", mock_display
-        ), patch("builtins.print", lambda x: printed_content.append(x)):
-            measure = Measure(name="test", definition=_.x)
-            display_dot_graph(measure)
-
-        # Verify Source was called with correct arguments
-        mock_source_class.assert_called_once()
-        call_args = mock_source_class.call_args
-        assert "digraph test" in call_args[0][0]
-        assert call_args[1]["format"] == "svg"
-        assert call_args[1]["engine"] == "dot"
-
-        # Verify display was called
-        mock_display.assert_called_once_with(mock_source_instance)
-
-        # Verify print was called with the dot graph
-        assert len(printed_content) == 1
-        assert "digraph test" in printed_content[0]
 
     def test_display_dot_graph_with_options(self) -> None:
         """Test that display_dot_graph passes options correctly."""

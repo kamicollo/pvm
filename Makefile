@@ -17,4 +17,7 @@ install_hooks:
 	git config core.hooksPath .githooks
 	chmod +x .githooks/*
 
+clear_cache:
+	python -c "from datasets.cache import clear_cache; clear_cache()"
+
 setup: install_hooks
