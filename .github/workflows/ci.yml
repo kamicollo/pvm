@@ -23,7 +23,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group dev
 
       - name: Run ruff check
         run: uv run ruff check .
@@ -53,7 +53,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group dev
 
       - name: Run tests
         run: uv run pytest tests

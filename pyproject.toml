@@ -27,6 +27,11 @@ dependencies = [
     "ty>=0.0.1a29",
 ]
 
+[dependency-groups]
+dev = [
+    "pygraphviz>=1.14",
+]
+
 [project.scripts]
 hello = "pvm:hello"
 
