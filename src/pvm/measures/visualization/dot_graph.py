@@ -253,5 +253,4 @@ def display_dot_graph(
     from IPython.display import display  # noqa: PLC0415
 
     dot_graph = to_dot_graph(measure, dpi=dpi, size=size, show_implied_formulas=show_implied_formulas)
-    print(dot_graph)
     display(Source(dot_graph, format="svg", engine="dot"))
