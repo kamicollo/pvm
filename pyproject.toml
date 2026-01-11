@@ -18,13 +18,18 @@ dependencies = [
     "pins>=0.8.6",
     "polars>=1.12.0",
     "pygments>=2.18.0",
-    "pygraphviz>=1.14",
     "pyperclip>=1.9.0",
     "pyright>=1.1.389",
     "pytest-cov>=6.0.0",
     "pytest>=8.3.3",
     "ruff>=0.7.3",
     "ty>=0.0.1a29",
+    "python-pest>=0.1.1",
+]
+
+[project.optional-dependencies]
+all = [
+    "pygraphviz>=1.14",
 ]
 
 [project.scripts]
