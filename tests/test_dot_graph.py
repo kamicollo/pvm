@@ -514,6 +514,8 @@ class TestToDotGraph:
             components=[rate, qty],
             reconcile=True,
         )
+        # Trigger validation to add reconciliation measure
+        measure.formula  # noqa: B018
         result = to_dot_graph(measure)
         assert "revenue_rec" in result
 

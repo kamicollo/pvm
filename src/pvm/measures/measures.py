@@ -4,14 +4,34 @@ from __future__ import annotations
 
 import dataclasses
 from abc import ABC
-from collections.abc import MutableSequence
+from collections.abc import Callable, MutableSequence
+from functools import wraps
+from typing import TypeVar
 
 from ibis import Deferred
 
 from pvm import CHANGE_COLUMN, EFFECT_COLUMN
+from pvm.common import ObservableList
+
+T = TypeVar("T")
 
 
-@dataclasses.dataclass(frozen=True, eq=True)
+def requires_validation(method: Callable[..., T]) -> Callable[..., T]:
+    """Ensure measure is validated before method execution."""
+
+    @wraps(method)
+    def wrapper(self: BaseMeasure, *args, **kwargs) -> T:  # noqa: ANN002, ANN003
+        self._ensure_validated()
+        return method(self, *args, **kwargs)
+
+    return wrapper
+
+
+# Fields that should trigger invalidation when changed
+_INVALIDATING_FIELDS = frozenset({"name", "reconcile", "components", "definition"})
+
+
+@dataclasses.dataclass(eq=True)
 class BaseMeasure(ABC):
     """
     Base class for measures.s.
@@ -31,6 +51,7 @@ class BaseMeasure(ABC):
         compare=False,
     )
     definition: Deferred | None = None
+    _validated: bool = dataclasses.field(default=False, compare=False, repr=False)
 
     @property
     def _rate_components(self) -> list[RateMeasure]:
@@ -113,6 +134,7 @@ class BaseMeasure(ABC):
             Deferred: Formula for the measure is either the definition or the calculated definition.
 
         """
+        self._ensure_validated()
         if self.definition is not None:
             return self.definition
         if self.calculated_definition is not None:
@@ -138,20 +160,51 @@ class BaseMeasure(ABC):
             raise ValueError(f"Measure {self.name} is missing a rate component")
 
     def __post_init__(self) -> None:
-        """Validate the measure configuration and adds reconciliation measure if necessary."""
-        self._validate_components()
-        self._add_reconciliation_field()
+        """Initialize the measure with observable components list."""
+        # Wrap the components list to auto-invalidate on mutations
+        object.__setattr__(
+            self,
+            "components",
+            ObservableList(self.components, on_mutate=self._invalidate),
+        )
+
+    def _invalidate(self) -> None:
+        """Mark the measure as needing re-validation (called automatically on mutations)."""
+        object.__setattr__(self, "_validated", False)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        """Override setattr to auto-invalidate when data fields change."""
+        # Always allow setting during initialization or for non-invalidating fields
+        if name in _INVALIDATING_FIELDS and hasattr(self, "_validated") and self._validated:
+            object.__setattr__(self, "_validated", False)
+
+        # Special handling for components: wrap in ObservableList
+        if name == "components" and not isinstance(value, ObservableList):
+            value = ObservableList(value, on_mutate=self._invalidate)  # type: ignore
+
+        object.__setattr__(self, name, value)
+
+    def _ensure_validated(self) -> None:
+        """Ensure the measure is validated, performing validation if not already done."""
+        if not self._validated:
+            self._validate_components()
+            self._add_reconciliation_field()
+            object.__setattr__(self, "_validated", True)
 
     def _add_reconciliation_field(self) -> None:
         """Add a reconciliation measure to the measure if it has components and a definition."""
         if self.rate and self.quantity and self.definition is not None and self.reconcile:
-            self.components.append(
-                ReconciliationMeasure(
-                    name=self.name + "_rec",
-                    definition=((self.definition) - self.calculated_definition),
-                ),
-            )
+            # Check if reconciliation field already exists to avoid duplicates
+            rec_name = self.name + "_rec"
+            if not any(c.name == rec_name for c in self.components):
+                self.components.append(
+                    ReconciliationMeasure(
+                        name=rec_name,
+                        definition=((self.definition) - self.calculated_definition),
+                    ),
+                )
 
+    @requires_validation
     def get_flattened_graph(self) -> MutableSequence[RateMeasure | Measure | QuantityMeasure]:
         """
         Get a flattened graph of the measure and its components.
@@ -204,6 +257,7 @@ class BaseMeasure(ABC):
         """
         return self.name + EFFECT_COLUMN + period
 
+    @requires_validation
     def display(
         self, *, dpi: int = 96, size: tuple[int, int] | None = None, show_implied_formulas: bool = False
     ) -> None:
@@ -224,21 +278,21 @@ class BaseMeasure(ABC):
         return display_dot_graph(self, dpi=dpi, size=size, show_implied_formulas=show_implied_formulas)
 
 
-@dataclasses.dataclass(frozen=True, eq=True)
+@dataclasses.dataclass(eq=True)
 class Measure(BaseMeasure):
     """Measure class for simple measures."""
 
     reconcile: bool = True
 
 
-@dataclasses.dataclass(frozen=True, eq=True)
+@dataclasses.dataclass(eq=True)
 class ReconciliationMeasure(BaseMeasure):
     """Measure class for reconciliation measures."""
 
     reconcile: bool = False
 
 
-@dataclasses.dataclass(frozen=True, eq=True)
+@dataclasses.dataclass(eq=True)
 class RateMeasure(BaseMeasure):
     """Measure class for rate measures."""
 
@@ -251,7 +305,7 @@ class RateMeasure(BaseMeasure):
             raise ValueError(f"Measure {self.name} of type {self.__class__.__name__} cannot have simple components")
 
 
-@dataclasses.dataclass(frozen=True, eq=True)
+@dataclasses.dataclass(eq=True)
 class QuantityMeasure(BaseMeasure):
     """Measure class for quantity measures."""
 
@@ -264,7 +318,7 @@ class QuantityMeasure(BaseMeasure):
             raise ValueError(f"Measure {self.name} of type {self.__class__.__name__} cannot have simple components")
 
 
-@dataclasses.dataclass(frozen=True, eq=True)
+@dataclasses.dataclass(eq=True)
 class CompositeRateMeasure(RateMeasure):
     """A measure that combines multiple rate components."""
 

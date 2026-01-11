@@ -14,8 +14,9 @@ def test_measure_creation():
 
 
 def test_measure_without_definition_or_components():
+    measure = Measure(name="test")
     with pytest.raises(ValueError, match="must have either components or a definition"):
-        Measure(name="test")
+        _ = measure.formula  # Trigger validation
 
 
 def test_rate_quantity_combination():
@@ -29,26 +30,31 @@ def test_rate_quantity_combination():
 
 
 def test_multiple_rate_components():
+    measure = Measure(
+        name="test",
+        components=[
+            RateMeasure(name="rate1", definition=deferred),
+            RateMeasure(name="rate2", definition=deferred),
+        ],
+    )
     with pytest.raises(ValueError, match="multiple rate components"):
-        Measure(
-            name="test",
-            components=[
-                RateMeasure(name="rate1", definition=deferred),
-                RateMeasure(name="rate2", definition=deferred),
-            ],
-        )
+        _ = measure.formula  # Trigger validation
 
 
 def test_rate_without_quantity():
+    measure = Measure(
+        name="test", components=[RateMeasure(name="rate", definition=deferred)]
+    )
     with pytest.raises(ValueError, match="missing a quantity component"):
-        Measure(name="test", components=[RateMeasure(name="rate", definition=deferred)])
+        _ = measure.formula  # Trigger validation
 
 
 def test_quantity_without_rate():
+    measure = Measure(
+        name="test", components=[QuantityMeasure(name="qty", definition=deferred)]
+    )
     with pytest.raises(ValueError, match="missing a rate component"):
-        Measure(
-            name="test", components=[QuantityMeasure(name="qty", definition=deferred)]
-        )
+        _ = measure.formula  # Trigger validation
 
 
 def test_reconciliation_measure():
@@ -57,6 +63,8 @@ def test_reconciliation_measure():
     field = Measure(
         name="total", definition=deferred, components=[rate, quantity], reconcile=True
     )
+    # Trigger validation to add reconciliation field
+    _ = field.formula
     assert any(c.name == "total_rec" for c in field.components)
     assert field.reconciliation_field is not None
 
@@ -113,6 +121,9 @@ def test_reconciliation_calculation_correctness():
         name="total", definition=deferred.total, components=[rate, quantity]
     )
 
+    # Trigger validation to add reconciliation field
+    _ = field.formula
+
     df = polars.DataFrame({"rate": [1], "qty": [3], "total": [4]}).with_columns(
         (polars.col("total") - (polars.col("rate") * polars.col("qty"))).alias(
             "total_rec"
@@ -161,10 +172,11 @@ def test_multiple_quantity_components():
     qty2 = QuantityMeasure(name="qty2", definition=deferred)
 
     # Attempt to create measure with multiple quantities
+    measure = Measure(name="test_measure", components=[qty1, qty2])
     with pytest.raises(
         ValueError, match="has multiple quantity components which is not supported"
     ):
-        Measure(name="test_measure", components=[qty1, qty2])
+        _ = measure.formula  # Trigger validation
 
 
 def test_measure_without_calculated_definition():
@@ -273,16 +285,21 @@ def test_composite_rate_measure_validation_errors():
     qty = QuantityMeasure(name="qty", definition=deferred.q)
 
     # Test empty components
+    empty_composite = CompositeRateMeasure(name="test", components=[])
     with pytest.raises(ValueError, match="must have at least one rate component"):
-        CompositeRateMeasure(name="test", components=[])
+        _ = empty_composite.formula  # Trigger validation
 
     # Test non-RateMeasure component
+    mixed_composite = CompositeRateMeasure(name="test", components=[rate, qty])
     with pytest.raises(ValueError, match="can only have RateMeasure components"):
-        CompositeRateMeasure(name="test", components=[rate, qty])
+        _ = mixed_composite.formula  # Trigger validation
 
     # Test direct definition
+    def_composite = CompositeRateMeasure(
+        name="test", components=[rate], definition=deferred.x
+    )
     with pytest.raises(ValueError, match="cannot have a direct definition"):
-        CompositeRateMeasure(name="test", components=[rate], definition=deferred.x)
+        _ = def_composite.formula  # Trigger validation
 
 
 def test_composite_rate_measure_calculated_definition():
@@ -322,10 +339,11 @@ def test_rate_measures_cannot_have_simple_components():
     qty = QuantityMeasure(name="qty", definition=deferred)
     simple = Measure(name="simple", definition=deferred)
 
+    measure = RateMeasure(name="test", components=[rate, qty, simple])
     with pytest.raises(
         ValueError, match="type RateMeasure cannot have simple components"
     ):
-        RateMeasure(name="test", components=[rate, qty, simple])
+        _ = measure.formula  # Trigger validation
 
 
 def test_quantity_measures_cannot_have_simple_components():
@@ -333,7 +351,223 @@ def test_quantity_measures_cannot_have_simple_components():
     qty = QuantityMeasure(name="qty", definition=deferred)
     simple = Measure(name="simple", definition=deferred)
 
+    measure = QuantityMeasure(name="test", components=[rate, qty, simple])
     with pytest.raises(
         ValueError, match="type QuantityMeasure cannot have simple components"
     ):
-        QuantityMeasure(name="test", components=[rate, qty, simple])
+        _ = measure.formula  # Trigger validation
+
+
+class TestMeasureValidationAndMutation:
+    """Tests for on-demand validation and automatic invalidation on mutation."""
+
+    def test_validation_is_deferred(self):
+        """Test that invalid measures can be created without immediate error."""
+        # This should NOT raise - validation is deferred
+        measure = Measure(name="invalid")
+        assert measure._validated is False
+
+    def test_validation_triggered_on_formula_access(self):
+        """Test that accessing formula triggers validation."""
+        measure = Measure(name="test", definition=deferred)
+        assert measure._validated is False
+        _ = measure.formula
+        assert measure._validated is True
+
+    def test_validation_triggered_on_get_flattened_graph(self):
+        """Test that get_flattened_graph triggers validation."""
+        measure = Measure(name="test", definition=deferred)
+        assert measure._validated is False
+        _ = measure.get_flattened_graph()
+        assert measure._validated is True
+
+    def test_components_append_auto_invalidates(self):
+        """Test that appending to components auto-invalidates."""
+        measure = Measure(name="test", definition=deferred)
+        _ = measure.formula  # Trigger validation
+        assert measure._validated is True
+
+        extra = Measure(name="extra", definition=deferred)
+        measure.components.append(extra)
+        assert measure._validated is False
+
+    def test_components_extend_auto_invalidates(self):
+        """Test that extending components auto-invalidates."""
+        measure = Measure(name="test", definition=deferred)
+        _ = measure.formula
+        assert measure._validated is True
+
+        measure.components.extend([Measure(name="a", definition=deferred)])
+        assert measure._validated is False
+
+    def test_components_remove_auto_invalidates(self):
+        """Test that removing from components auto-invalidates."""
+        comp = Measure(name="comp", definition=deferred)
+        measure = Measure(name="test", components=[comp])
+        _ = measure.formula
+        assert measure._validated is True
+
+        measure.components.remove(comp)
+        assert measure._validated is False
+
+    def test_components_pop_auto_invalidates(self):
+        """Test that popping from components auto-invalidates."""
+        comp = Measure(name="comp", definition=deferred)
+        measure = Measure(name="test", components=[comp])
+        _ = measure.formula
+        assert measure._validated is True
+
+        measure.components.pop()
+        assert measure._validated is False
+
+    def test_components_clear_auto_invalidates(self):
+        """Test that clearing components auto-invalidates."""
+        comp = Measure(name="comp", definition=deferred)
+        measure = Measure(name="test", definition=deferred, components=[comp])
+        _ = measure.formula
+        assert measure._validated is True
+
+        measure.components.clear()
+        assert measure._validated is False
+
+    def test_components_setitem_auto_invalidates(self):
+        """Test that setting an item in components auto-invalidates."""
+        comp1 = Measure(name="comp1", definition=deferred)
+        comp2 = Measure(name="comp2", definition=deferred)
+        measure = Measure(name="test", components=[comp1])
+        _ = measure.formula
+        assert measure._validated is True
+
+        measure.components[0] = comp2
+        assert measure._validated is False
+
+    def test_components_iadd_auto_invalidates(self):
+        """Test that += on components auto-invalidates."""
+        measure = Measure(name="test", definition=deferred)
+        _ = measure.formula
+        assert measure._validated is True
+
+        measure.components += [Measure(name="a", definition=deferred)]
+        assert measure._validated is False
+
+    def test_name_change_auto_invalidates(self):
+        """Test that changing name auto-invalidates."""
+        measure = Measure(name="test", definition=deferred)
+        _ = measure.formula
+        assert measure._validated is True
+
+        measure.name = "new_name"
+        assert measure._validated is False
+
+    def test_definition_change_auto_invalidates(self):
+        """Test that changing definition auto-invalidates."""
+        measure = Measure(name="test", definition=deferred)
+        _ = measure.formula
+        assert measure._validated is True
+
+        measure.definition = deferred.new_field
+        assert measure._validated is False
+
+    def test_reconcile_change_auto_invalidates(self):
+        """Test that changing reconcile auto-invalidates."""
+        measure = Measure(name="test", definition=deferred)
+        _ = measure.formula
+        assert measure._validated is True
+
+        measure.reconcile = False
+        assert measure._validated is False
+
+    def test_components_reassignment_auto_invalidates(self):
+        """Test that reassigning components auto-invalidates."""
+        measure = Measure(name="test", definition=deferred)
+        _ = measure.formula
+        assert measure._validated is True
+
+        measure.components = [Measure(name="new", definition=deferred)]
+        assert measure._validated is False
+
+    def test_mutation_and_revalidation(self):
+        """Test that mutations can be made and revalidation works automatically."""
+        rate = RateMeasure(name="rate", definition=deferred)
+        qty = QuantityMeasure(name="qty", definition=deferred)
+        measure = Measure(name="test", components=[rate, qty])
+
+        # Initial validation
+        _ = measure.formula
+        assert measure._validated is True
+
+        # Mutate: add a component (auto-invalidates)
+        extra = Measure(name="extra", definition=deferred)
+        measure.components.append(extra)
+        assert measure._validated is False
+
+        # Revalidate by accessing formula
+        _ = measure.formula
+        assert measure._validated is True
+        assert extra in measure.components
+
+    def test_reconciliation_not_duplicated_on_revalidation(self):
+        """Test that reconciliation field is not added twice on revalidation."""
+        rate = RateMeasure(name="rate", definition=deferred)
+        qty = QuantityMeasure(name="qty", definition=deferred)
+        measure = Measure(
+            name="test",
+            definition=deferred,
+            components=[rate, qty],
+            reconcile=True,
+        )
+
+        # First validation adds reconciliation
+        _ = measure.formula
+        rec_count_1 = sum(1 for c in measure.components if c.name == "test_rec")
+        assert rec_count_1 == 1
+
+        # Mutation triggers auto-invalidation
+        measure.name = "test"  # Even same value triggers invalidation
+
+        # Revalidate
+        _ = measure.formula
+
+        # Should still only have one reconciliation field
+        rec_count_2 = sum(1 for c in measure.components if c.name == "test_rec")
+        assert rec_count_2 == 1
+
+    def test_mutation_workflow_add_rate_qty(self):
+        """Test workflow: create measure, add rate/qty, validate automatically."""
+        measure = Measure(name="test", definition=deferred)
+
+        # Initially valid (has definition)
+        _ = measure.formula
+        assert measure._validated is True
+
+        # Add rate and quantity (auto-invalidates)
+        rate = RateMeasure(name="rate", definition=deferred)
+        qty = QuantityMeasure(name="qty", definition=deferred)
+        measure.components.extend([rate, qty])
+        assert measure._validated is False
+
+        # Access formula to revalidate and add reconciliation
+        _ = measure.formula
+        assert measure.reconciliation_field is not None
+
+    def test_validation_error_after_mutation(self):
+        """Test that invalid mutations are caught on revalidation."""
+        rate1 = RateMeasure(name="rate1", definition=deferred)
+        qty = QuantityMeasure(name="qty", definition=deferred)
+        measure = Measure(name="test", components=[rate1, qty])
+
+        # Initial validation passes
+        _ = measure.formula
+
+        # Add invalid second rate (auto-invalidates)
+        rate2 = RateMeasure(name="rate2", definition=deferred)
+        measure.components.append(rate2)
+        assert measure._validated is False
+
+        # Revalidation should fail
+        with pytest.raises(ValueError, match="multiple rate components"):
+            _ = measure.formula
+
+        # Revalidation should fail
+        with pytest.raises(ValueError, match="multiple rate components"):
+            _ = measure.formula
