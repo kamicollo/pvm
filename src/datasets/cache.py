@@ -21,7 +21,7 @@ def get_cache_path(url: str) -> pathlib.Path:
 def read_csv_cached(
     url: str,
     skip_rows: int = 0,
-    force_refresh: bool = False,
+    force_refresh: bool = False,  # noqa: FBT001, FBT002
 ) -> pl.DataFrame:
     """
     Read CSV with local file caching.
