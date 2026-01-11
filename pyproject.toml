@@ -24,6 +24,7 @@ dependencies = [
     "pytest>=8.3.3",
     "ruff>=0.7.3",
     "ty>=0.0.1a29",
+    "python-pest>=0.1.1",
 ]
 
 [project.optional-dependencies]
