@@ -7,6 +7,7 @@ from functools import cached_property
 from typing import Self
 
 import ibis
+import ibis.selectors as s
 from ibis import Deferred
 
 from pvm import CHANGE_COLUMN, EFFECT_COLUMN, PERIOD_COLUMN
@@ -242,8 +243,7 @@ class PVM:
         max_depth = max(len(p) for p in ancestor_paths.values()) - 1
 
         effect_cols = [
-            col for col in t.columns
-            if EFFECT_COLUMN in col and col.split(EFFECT_COLUMN)[0] in leaf_measures
+            col for col in t.columns if EFFECT_COLUMN in col and col.split(EFFECT_COLUMN)[0] in leaf_measures
         ]
         measure_names = {f.name for f in self.graph.get_flattened_graph()}
         base_period_cols = {f"{m}_{p}" for m in measure_names for p in (self.period_order or [])}
@@ -251,7 +251,7 @@ class PVM:
         hierarchy_col_names = [col for col in t.columns if col not in non_hierarchy]
 
         long = t.select(hierarchy_col_names + effect_cols).pivot_longer(
-            effect_cols,
+            s.cols(*effect_cols),
             names_to=["measure", "period"],
             names_pattern=f"^(.+?){EFFECT_COLUMN}(.+)$",
             values_to="value",

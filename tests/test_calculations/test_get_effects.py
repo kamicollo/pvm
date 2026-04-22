@@ -65,7 +65,9 @@ def test_get_effects_no_effect_columns_remain(effects_revenue: pl.DataFrame) -> 
     """No raw wide-format __effect__ or __change__ columns leak into the output."""
     assert not any("__effect__" in c for c in effects_revenue.columns)
     assert not any("__change__" in c for c in effects_revenue.columns)
-    assert {"measure", "period", "value", "L1", "L2", "L3"}.issubset(effects_revenue.columns)
+    assert {"measure", "period", "value", "L1", "L2", "L3"}.issubset(
+        effects_revenue.columns
+    )
 
 
 def test_get_effects_two_level_graph(sales_dataset: ibis.Table) -> None:
@@ -74,7 +76,9 @@ def test_get_effects_two_level_graph(sales_dataset: ibis.Table) -> None:
         "rev",
         definition=_.revenue.sum(),
         components=[
-            RateMeasure("price", definition=(_.volume * _.unit_price).sum() / _.volume.sum()),
+            RateMeasure(
+                "price", definition=(_.volume * _.unit_price).sum() / _.volume.sum()
+            ),
             QuantityMeasure("volume", definition=_.volume.sum()),
         ],
     )
