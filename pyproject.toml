@@ -25,6 +25,7 @@ dependencies = [
     "ruff>=0.7.3",
     "ty>=0.0.1a29",
     "python-pest>=0.1.1",
+    "great-tables>=0.21.0",
 ]
 
 [project.optional-dependencies]
