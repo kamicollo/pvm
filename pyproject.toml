@@ -26,7 +26,6 @@ dependencies = [
     "ty>=0.0.1a29",
     "python-pest>=0.1.1",
     "great-tables>=0.21.0",
-    "apache-ossie",
 ]
 
 [project.optional-dependencies]
@@ -136,6 +135,12 @@ follow_untyped_imports = true
 [[tool.mypy.overrides]]
 module = ["pvm.common.observable_list"]
 disable_error_code = ["override", "misc"]
+
+[dependency-groups]
+ossie = ["apache-ossie"]
+
+[tool.uv]
+default-groups = ["ossie"]
 
 [tool.uv.sources]
 apache-ossie = { git = "https://github.com/apache/ossie.git", subdirectory = "python" }
