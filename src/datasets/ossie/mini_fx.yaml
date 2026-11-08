@@ -1,0 +1,62 @@
+version: 0.2.0.dev0
+name: mini_fx
+description: Tiny toy price-volume-FX dataset (datasets.mini.fx). Defined in-memory,
+  not file-backed.
+datasets:
+- name: fx
+  source: datasets.mini.fx
+  description: Products sold in countries over two years
+  fields:
+  - name: product
+    expression:
+      sql: product
+    description: Product
+    datatype: String
+  - name: country
+    expression:
+      sql: country
+    description: Country
+    datatype: String
+  - name: year
+    expression:
+      sql: year
+    description: Calendar year
+    datatype: Integer
+  - name: volume
+    expression:
+      sql: volume
+    description: Units sold
+    datatype: Integer
+  - name: price_in_lc
+    expression:
+      sql: price_in_lc
+    description: Price in local currency
+    datatype: Float
+  - name: fx_rate
+    expression:
+      sql: fx_rate
+    description: FX rate to reporting currency
+    datatype: Float
+  - name: price
+    expression:
+      sql: price
+    description: price_in_lc * fx_rate
+    datatype: Float
+  - name: revenue
+    expression:
+      sql: revenue
+    description: price * volume
+    datatype: Float
+  metrics:
+  - name: total_volume
+    expression:
+      sql: SUM(volume)
+    description: Total units sold
+    datatype: Integer
+  - name: total_revenue
+    expression:
+      sql: SUM(revenue)
+    description: Total revenue
+    datatype: Float
+relationships: []
+metrics: []
