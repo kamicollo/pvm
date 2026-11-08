@@ -1,0 +1,434 @@
+version: 0.2.0.dev0
+name: olist
+description: Brazilian e-commerce public dataset by Olist (orders, items, payments,
+  reviews, customers, sellers, products).
+datasets:
+- name: customers
+  source: src/datasets/olist/olist_customers_dataset.parquet
+  primary_key:
+  - customer_id
+  description: Customers who placed orders
+  fields:
+  - name: customer_id
+    expression:
+      sql: customer_id
+    description: Per-order customer key; joins to orders
+    datatype: String
+  - name: customer_unique_id
+    expression:
+      sql: customer_unique_id
+    description: Unique identifier of a customer across orders
+    datatype: String
+  - name: customer_zip_code_prefix
+    expression:
+      sql: customer_zip_code_prefix
+    description: First five digits of customer zip code
+    datatype: Integer
+  - name: customer_city
+    expression:
+      sql: customer_city
+    description: Customer city
+    datatype: String
+  - name: customer_state
+    expression:
+      sql: customer_state
+    description: Customer state
+    datatype: String
+  metrics:
+  - name: unique_customer_count
+    expression:
+      sql: COUNT(DISTINCT customer_unique_id)
+    description: Number of distinct customers
+    datatype: Integer
+- name: geolocation
+  source: src/datasets/olist/olist_geolocation_dataset.parquet
+  description: Brazilian zip code prefixes with coordinates (multiple rows per prefix)
+  fields:
+  - name: geolocation_zip_code_prefix
+    expression:
+      sql: geolocation_zip_code_prefix
+    description: First five digits of zip code
+    datatype: Integer
+  - name: geolocation_lat
+    expression:
+      sql: geolocation_lat
+    description: Latitude
+    datatype: Float
+  - name: geolocation_lng
+    expression:
+      sql: geolocation_lng
+    description: Longitude
+    datatype: Float
+  - name: geolocation_city
+    expression:
+      sql: geolocation_city
+    description: City name
+    datatype: String
+  - name: geolocation_state
+    expression:
+      sql: geolocation_state
+    description: State
+    datatype: String
+  metrics: []
+- name: orders
+  source: src/datasets/olist/olist_orders_dataset.parquet
+  primary_key:
+  - order_id
+  description: Orders placed on the marketplace
+  fields:
+  - name: order_id
+    expression:
+      sql: order_id
+    description: Order identifier
+    datatype: String
+  - name: customer_id
+    expression:
+      sql: customer_id
+    description: Customer key
+    datatype: String
+  - name: order_status
+    expression:
+      sql: order_status
+    description: Order status (e.g. delivered, shipped, canceled)
+    datatype: String
+  - name: order_purchase_timestamp
+    expression:
+      sql: order_purchase_timestamp
+    dimension:
+      is_time: true
+    description: Purchase timestamp (stored as string in source)
+    datatype: DateTime
+  - name: order_approved_at
+    expression:
+      sql: order_approved_at
+    dimension:
+      is_time: true
+    description: Payment approval timestamp (stored as string)
+    datatype: DateTime
+  - name: order_delivered_carrier_date
+    expression:
+      sql: order_delivered_carrier_date
+    dimension:
+      is_time: true
+    description: Handover to carrier timestamp (stored as string)
+    datatype: DateTime
+  - name: order_delivered_customer_date
+    expression:
+      sql: order_delivered_customer_date
+    dimension:
+      is_time: true
+    description: Delivery to customer timestamp (stored as string)
+    datatype: DateTime
+  - name: order_estimated_delivery_date
+    expression:
+      sql: order_estimated_delivery_date
+    dimension:
+      is_time: true
+    description: Estimated delivery date (stored as string)
+    datatype: DateTime
+  metrics:
+  - name: order_count
+    expression:
+      sql: COUNT(order_id)
+    description: Number of orders
+    datatype: Integer
+- name: order_items
+  source: src/datasets/olist/olist_order_items_dataset.parquet
+  primary_key:
+  - order_id
+  - order_item_id
+  description: Items purchased within each order
+  fields:
+  - name: order_id
+    expression:
+      sql: order_id
+    description: Order identifier
+    datatype: String
+  - name: order_item_id
+    expression:
+      sql: order_item_id
+    description: Sequential item number within the order
+    datatype: Integer
+  - name: product_id
+    expression:
+      sql: product_id
+    description: Product identifier
+    datatype: String
+  - name: seller_id
+    expression:
+      sql: seller_id
+    description: Seller identifier
+    datatype: String
+  - name: shipping_limit_date
+    expression:
+      sql: shipping_limit_date
+    dimension:
+      is_time: true
+    description: Seller shipping limit (stored as string)
+    datatype: DateTime
+  - name: price
+    expression:
+      sql: price
+    description: Item price
+    datatype: Float
+  - name: freight_value
+    expression:
+      sql: freight_value
+    description: Item freight cost
+    datatype: Float
+  metrics:
+  - name: item_revenue
+    expression:
+      sql: SUM(price)
+    description: Total item price excluding freight
+    datatype: Float
+  - name: freight_total
+    expression:
+      sql: SUM(freight_value)
+    description: Total freight value
+    datatype: Float
+  - name: item_count
+    expression:
+      sql: COUNT(order_item_id)
+    description: Number of order items
+    datatype: Integer
+- name: order_payments
+  source: src/datasets/olist/olist_order_payments_dataset.parquet
+  primary_key:
+  - order_id
+  - payment_sequential
+  description: Payments for orders
+  fields:
+  - name: order_id
+    expression:
+      sql: order_id
+    description: Order identifier
+    datatype: String
+  - name: payment_sequential
+    expression:
+      sql: payment_sequential
+    description: Payment sequence number for the order
+    datatype: Integer
+  - name: payment_type
+    expression:
+      sql: payment_type
+    description: Payment method
+    datatype: String
+  - name: payment_installments
+    expression:
+      sql: payment_installments
+    description: Number of installments
+    datatype: Integer
+  - name: payment_value
+    expression:
+      sql: payment_value
+    description: Transaction value
+    datatype: Float
+  metrics:
+  - name: payment_total
+    expression:
+      sql: SUM(payment_value)
+    description: Total payment value
+    datatype: Float
+- name: order_reviews
+  source: src/datasets/olist/olist_order_reviews_dataset.parquet
+  description: Customer reviews of orders
+  fields:
+  - name: review_id
+    expression:
+      sql: review_id
+    description: Review identifier (not unique across rows)
+    datatype: String
+  - name: order_id
+    expression:
+      sql: order_id
+    description: Order identifier
+    datatype: String
+  - name: review_score
+    expression:
+      sql: review_score
+    description: Satisfaction score from 1 to 5
+    datatype: Integer
+  - name: review_comment_title
+    expression:
+      sql: review_comment_title
+    description: Review title
+    datatype: String
+  - name: review_comment_message
+    expression:
+      sql: review_comment_message
+    description: Review message
+    datatype: String
+  - name: review_creation_date
+    expression:
+      sql: review_creation_date
+    dimension:
+      is_time: true
+    description: Survey sent date (stored as string)
+    datatype: DateTime
+  - name: review_answer_timestamp
+    expression:
+      sql: review_answer_timestamp
+    dimension:
+      is_time: true
+    description: Survey answer timestamp (stored as string)
+    datatype: DateTime
+  metrics:
+  - name: avg_review_score
+    expression:
+      sql: AVG(review_score)
+    description: Average review score
+    datatype: Float
+- name: products
+  source: src/datasets/olist/olist_products_dataset.parquet
+  primary_key:
+  - product_id
+  description: Products sold on the marketplace
+  fields:
+  - name: product_id
+    expression:
+      sql: product_id
+    description: Product identifier
+    datatype: String
+  - name: product_category_name
+    expression:
+      sql: product_category_name
+    description: Category name in Portuguese
+    datatype: String
+  - name: product_name_lenght
+    expression:
+      sql: product_name_lenght
+    description: Product name length in characters (column name misspelled in source)
+    datatype: Integer
+  - name: product_description_lenght
+    expression:
+      sql: product_description_lenght
+    description: Description length in characters (column name misspelled in source)
+    datatype: Integer
+  - name: product_photos_qty
+    expression:
+      sql: product_photos_qty
+    description: Number of product photos
+    datatype: Integer
+  - name: product_weight_g
+    expression:
+      sql: product_weight_g
+    description: Weight in grams
+    datatype: Integer
+  - name: product_length_cm
+    expression:
+      sql: product_length_cm
+    description: Length in cm
+    datatype: Integer
+  - name: product_height_cm
+    expression:
+      sql: product_height_cm
+    description: Height in cm
+    datatype: Integer
+  - name: product_width_cm
+    expression:
+      sql: product_width_cm
+    description: Width in cm
+    datatype: Integer
+  metrics: []
+- name: sellers
+  source: src/datasets/olist/olist_sellers_dataset.parquet
+  primary_key:
+  - seller_id
+  description: Sellers fulfilling orders
+  fields:
+  - name: seller_id
+    expression:
+      sql: seller_id
+    description: Seller identifier
+    datatype: String
+  - name: seller_zip_code_prefix
+    expression:
+      sql: seller_zip_code_prefix
+    description: First five digits of seller zip code
+    datatype: Integer
+  - name: seller_city
+    expression:
+      sql: seller_city
+    description: Seller city
+    datatype: String
+  - name: seller_state
+    expression:
+      sql: seller_state
+    description: Seller state
+    datatype: String
+  metrics: []
+- name: product_categories
+  source: src/datasets/olist/product_category_name_translation.parquet
+  primary_key:
+  - product_category_name
+  description: Portuguese to English category name translation
+  fields:
+  - name: product_category_name
+    expression:
+      sql: product_category_name
+    description: Category name in Portuguese
+    datatype: String
+  - name: product_category_name_english
+    expression:
+      sql: product_category_name_english
+    description: Category name in English
+    datatype: String
+  metrics: []
+relationships:
+- name: orders_to_customers
+  from: orders
+  to: customers
+  from_columns:
+  - customer_id
+  to_columns:
+  - customer_id
+- name: order_items_to_orders
+  from: order_items
+  to: orders
+  from_columns:
+  - order_id
+  to_columns:
+  - order_id
+- name: order_items_to_products
+  from: order_items
+  to: products
+  from_columns:
+  - product_id
+  to_columns:
+  - product_id
+- name: order_items_to_sellers
+  from: order_items
+  to: sellers
+  from_columns:
+  - seller_id
+  to_columns:
+  - seller_id
+- name: order_payments_to_orders
+  from: order_payments
+  to: orders
+  from_columns:
+  - order_id
+  to_columns:
+  - order_id
+- name: order_reviews_to_orders
+  from: order_reviews
+  to: orders
+  from_columns:
+  - order_id
+  to_columns:
+  - order_id
+- name: products_to_product_categories
+  from: products
+  to: product_categories
+  from_columns:
+  - product_category_name
+  to_columns:
+  - product_category_name
+metrics:
+- name: revenue
+  expression:
+    sql: SUM(order_items.price) + SUM(order_items.freight_value)
+  description: Item price plus freight (matches the `revenue` column in olist.sales_data,
+    quantity = 1)
+  datatype: Float

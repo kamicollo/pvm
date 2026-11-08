@@ -1,0 +1,111 @@
+version: 0.2.0.dev0
+name: fake_sales
+description: Synthetic multi-currency sales data generated with Faker (see datasets.fake).
+datasets:
+- name: sales
+  source: src/datasets/fake/sales.parquet
+  description: Sales records by year, country, SKU and customer
+  fields:
+  - name: year
+    expression:
+      sql: year
+    description: Calendar year
+    datatype: Integer
+  - name: country
+    expression:
+      sql: country
+    description: Country
+    datatype: String
+  - name: currency
+    expression:
+      sql: currency
+    description: Local currency code
+    datatype: String
+  - name: sku
+    expression:
+      sql: sku
+    description: Product SKU
+    datatype: String
+  - name: customer
+    expression:
+      sql: customer
+    description: Customer name
+    datatype: String
+  - name: unit_price
+    expression:
+      sql: unit_price
+    description: Unit price in reporting currency
+    datatype: Float
+  - name: fx_rate
+    expression:
+      sql: fx_rate
+    description: FX rate applied to price
+    datatype: Float
+  - name: volume
+    expression:
+      sql: volume
+    description: Units sold
+    datatype: Float
+  - name: flat_fee
+    expression:
+      sql: flat_fee
+    description: Flat fee adjustment (reporting currency)
+    datatype: Float
+  - name: unit_cost
+    expression:
+      sql: unit_cost
+    description: Unit cost in reporting currency
+    datatype: Float
+  - name: cost_fx_rate
+    expression:
+      sql: cost_fx_rate
+    description: FX rate applied to cost
+    datatype: Float
+  - name: price_in_lc
+    expression:
+      sql: price_in_lc
+    description: Unit price in local currency
+    datatype: Float
+  - name: cost_in_lc
+    expression:
+      sql: cost_in_lc
+    description: Unit cost in local currency
+    datatype: Float
+  - name: revenue
+    expression:
+      sql: revenue
+    description: unit_price * volume + flat_fee
+    datatype: Float
+  - name: cost
+    expression:
+      sql: cost
+    description: unit_cost * volume
+    datatype: Float
+  metrics:
+  - name: total_volume
+    expression:
+      sql: SUM(volume)
+    description: Total units sold
+    datatype: Float
+  - name: total_revenue
+    expression:
+      sql: SUM(revenue)
+    description: Total revenue
+    datatype: Float
+  - name: total_cost
+    expression:
+      sql: SUM(cost)
+    description: Total cost
+    datatype: Float
+  - name: total_profit
+    expression:
+      sql: SUM(revenue) - SUM(cost)
+    description: Revenue minus cost
+    datatype: Float
+  - name: avg_price
+    expression:
+      sql: SUM(revenue) / SUM(volume)
+    description: Volume-weighted average price
+    datatype: Float
+relationships: []
+metrics: []
