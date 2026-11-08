@@ -21,19 +21,21 @@ Out of scope (later phases):
 
 `reconcile` flags and the calculation `method` (CLASSIC etc.) are
 calculation-time properties. They belong to the API call, not to the persisted
-model. The schema only describes **what the nodes are** (type) and **how they
-decompose** (tree/DAG structure).
+model. Reconciliation nodes are injected into the graph by PVM when needed and
+are not declared. The schema only describes **what role each node plays** and
+**how nodes combine** (DAG structure and operands).
 
 ## Design decisions
 
 | Topic | Decision |
 |---|---|
-| Placement | Hybrid: per-metric extension carries a default `kind`; one document-level extension carries graph structure and per-graph kind overrides. |
-| Source of truth for `kind` | A metric's role depends on the graph (e.g. `total_volume` is a `quantity` in a revenue graph but a plain `measure` in its own graph). Effective kind = graph override, else the metric's default `kind`. |
+| Placement | Hybrid: a per-metric extension carries a default `role`; one document-level extension carries graphs and per-graph role overrides. |
+| Roles | `rate`, `quantity`, `measure`. A metric with no role is a `measure`. |
+| Role is per graph | The same metric can play different roles in different graphs (e.g. `total_volume` is a `quantity` in a revenue graph, a `measure` in its own). Effective role = graph override, else metric default, else `measure`. |
 | Payload encoding | YAML in a block scalar (`data: \|`). The parser uses `yaml.safe_load`, so JSON payloads are also accepted (JSON is YAML). |
-| Node references | Metric name, optionally `dataset.metric`. |
-| Structure | Per-graph map of `parent: [children]`. Shared nodes allowed (DAG), cycles rejected. |
-| Kinds | `measure`, `rate`, `quantity`, `reconciliation`. Composite rate is inferred. |
+| Node references | Ossie metric names only. A name used in a graph must identify exactly one metric in the model. |
+| Structure | Per-graph map of `parent: operand expression`. Shared nodes allowed (DAG), cycles rejected. |
+| Operands | Explicit expression per parent using `+`, `-`, `*` (see grammar). |
 | Metrics | Every node must be backed by an Ossie metric (with its own expression). |
 | Versioning | `version` inside each payload; the validator rejects unknown versions. |
 
@@ -47,7 +49,7 @@ relationships, so the hybrid placement is permitted by Ossie.
 The vendor name is `PVM` (exact, case-sensitive). At most one `PVM` extension
 per object.
 
-### Metric-level extension: default node kind (optional)
+### Metric-level extension: default role (optional)
 
 ```yaml
 metrics:
@@ -59,24 +61,20 @@ metrics:
   - vendor_name: PVM
     data: |
       version: 1
-      kind: rate
+      role: rate
 ```
 
-The metric `kind` is the role the metric plays unless a graph says otherwise.
-It is optional: a metric whose role differs per graph can omit it, as long as
-every graph that uses it assigns a kind (see below).
+`role` is the role the metric plays unless a graph says otherwise. Omit the
+extension entirely for plain measures.
 
-`kind` is one of:
-
-| kind | Meaning | PVM class |
+| role | Meaning | PVM class |
 |---|---|---|
-| `measure` | Additive measure that can decompose | `Measure` |
+| `measure` (default) | Additive measure that can decompose | `Measure` |
 | `rate` | Per-unit value (price, FX rate, ...) | `RateMeasure` |
 | `quantity` | Volume-like value | `QuantityMeasure` |
-| `reconciliation` | Explicit residual node | `ReconciliationMeasure` |
 
-A rate whose components are all rates is a `CompositeRateMeasure`. That is
-inferred from the structure and not declared.
+`measure` is a valid value so that a graph can override a metric's default
+`rate`/`quantity` back to a measure.
 
 ### Document-level extension: graphs
 
@@ -89,40 +87,59 @@ custom_extensions:
       revenue:
         root: total_revenue
         components:
-          total_revenue: [avg_price, total_volume]
-          avg_price: [avg_price_in_lc, avg_fx_rate]
+          total_revenue: avg_price * total_volume + total_flat_fee
+          avg_price: avg_price_in_lc + avg_fx_rate
       volume:
         root: total_volume
-        kinds:
+        roles:
           total_volume: measure   # quantity by default, measure here
         components:
-          total_volume: [volume_east, volume_west]
+          total_volume: volume_east + volume_west
+      profit:
+        root: total_profit
+        components:
+          total_profit: total_revenue - total_cost
 ```
 
 - `graphs` is a map; the key is the graph name (unique by construction).
-- `root` references the top-level metric.
-- `kinds` (optional) maps a node to a kind, overriding the metric's default
+- `root` is a metric name; any role is allowed.
+- `roles` (optional) maps a node to a role, overriding the metric's default
   for this graph only. Keys must be nodes of the graph. Within one graph a
-  node has exactly one kind, even when shared by several parents.
-- `components` maps a parent to the list of its children. Leaves are
-  implicit: any reference that never appears as a key is a leaf. Order of
-  children is not significant.
-- The node set of a graph is `root` plus every key and every child.
+  node has exactly one role, even when shared by several parents.
+- `components` maps a parent to the expression that combines its children.
+  Leaves are implicit: any name that never appears as a key is a leaf.
+- The node set of a graph is `root` plus every key and every name used in an
+  expression.
 
 Why a map and not a nested tree: a node can be shared by several parents (for
-example `volume` under both `revenue` and `cost`). Nesting would duplicate the
-node and nothing would tie the copies together. With the map, a node is named
-once and referenced many times.
+example `total_volume` under both revenue and cost). Nesting would duplicate
+the node and nothing would tie the copies together.
+
+### Operand expressions
+
+```text
+expression := term (("+" | "-") term)*
+term       := ["-"] name ["*" name]
+name       := [A-Za-z_][A-Za-z0-9_]*
+```
+
+- No parentheses, division or numeric literals.
+- A term with `*` is a **product** and must be exactly one `rate` times one
+  `quantity` (either order).
+- A term without `*` is a **single**.
+- `-` negates a term. `a - b` means `a + (-b)`: the loader negates the
+  child's value and effects.
+- For rate parents, `+` follows PVM's composite semantics: the child rates'
+  effects add up, even where the rate values themselves do not.
+
+Names must follow the `name` grammar to be usable in expressions; a metric that
+does not (spaces, dots, ...) cannot be a node (`PVM_INVALID_NODE_NAME`).
 
 ### References
 
-A reference is `metric` or `dataset.metric`.
-
-- `dataset.metric` resolves to a dataset-scoped metric.
-- A bare name resolves to a model-scoped metric, or to a dataset-scoped one if
-  that name is unique across the whole model.
-- A bare name that matches more than one metric is an error
-  (`PVM_AMBIGUOUS_REF`); qualify it.
+A reference is an Ossie metric name, with no dataset qualifier. Resolution
+looks at all model-scoped and dataset-scoped metrics; a name that matches more
+than one is an error (`PVM_AMBIGUOUS_REF`), and the metric must be renamed.
 
 ## Validation rules
 
@@ -133,43 +150,39 @@ Extension syntax:
 
 - Payload parses as YAML and is a mapping. At most one `PVM` extension per
   object. `version` is present and supported.
-- Payload matches the pydantic model (unknown keys rejected, `kind` is a known
+- Payload matches the pydantic model (unknown keys rejected, `role` is a known
   enum value).
+- Every expression parses against the grammar above.
 
 References:
 
-- Every reference resolves to exactly one metric.
-- Every node of a graph resolves to a metric (nodes must be backed by a
-  metric).
-- Every node has an effective kind: a `kinds` override in the graph, else the
-  metric's default `kind` (`PVM_MISSING_KIND` otherwise).
-- Every key in `kinds` is a node of that graph.
-- All type rules below apply to **effective** kinds, per graph.
-- `root` has effective kind `measure`.
+- Every name resolves to exactly one metric.
+- Every key in `roles` is a node of that graph.
+- All type rules below apply to **effective** roles, per graph.
 
 Structure:
 
 - The graph is acyclic.
-- Every node is reachable from `root`.
-- A parent lists each child at most once.
+- Every node is reachable from `root`; every key in `components` is a node
+  reachable from `root`.
+- A name appears at most once in one parent's expression.
 
-Type constraints:
+Type constraints (for a parent with effective role R):
 
-- `measure` with children: may have at most one `rate` child and at most one
-  `quantity` child, and they must come as a pair (both or neither); any
-  number of other `measure` children (summed) are allowed.
-- `rate` and `quantity` nodes cannot have `measure` children.
-- A `rate` whose children are all `rate` is composite (at least one child).
-  Composite rates cannot have `quantity` or other child kinds.
-- `reconciliation` nodes are leaves and may only be children of a `measure`.
-- `rate`/`quantity`/`reconciliation` cannot be a graph `root`.
-- Leaves of kind `measure` are allowed (the metric expression is their
-  definition).
+- `measure`: at most one product, any number of singles; all singles are
+  `measure`.
+- `rate`: either exactly one product and nothing else, or one or more singles
+  that are all `rate` (composite rate).
+- `quantity`: exactly one product and nothing else.
+- A product has exactly one `rate` and one `quantity` operand.
+- Leaves of any role are allowed (the metric expression is their definition).
 
 Warnings (do not fail validation):
 
-- A metric has a PVM `kind` but is not part of any graph.
-- A `kinds` override equals the metric's default (redundant).
+- A metric has a PVM `role` but is not part of any graph.
+- A `roles` override equals the metric's default (redundant).
+- A node name ends in `_rec`, which PVM uses for injected reconciliation
+  nodes.
 - A metric used in a graph has no `datatype`, or a non-numeric one.
 
 Cross-document checks that need the semantic model (e.g. a `rate` metric
@@ -182,9 +195,10 @@ New package `src/pvm/ossie/` with no dependency on Ibis:
 ```text
 pvm/ossie/
   __init__.py    public API
-  models.py      pydantic models: MetricExtension, GraphsExtension, Graph, NodeKind
+  models.py      pydantic models: MetricExtension, GraphsExtension, Graph, NodeRole
   extract.py     locate the PVM extension(s), safe_load payloads
-  refs.py        metric index and reference resolution
+  refs.py        metric index and name resolution
+  expr.py        parser for operand expressions
   validate.py    rules above, returns ValidationReport
   __main__.py    CLI
 ```
@@ -240,64 +254,84 @@ aggregate.
 
 ### `mini_fx.yaml`
 
-Keep `total_volume` and `total_revenue`; add rate metrics and default kinds
-(overridden per graph where a metric plays another role):
+Keep `total_volume` and `total_revenue`; add rate metrics. Default roles are
+set only where they are not `measure`:
 
-| metric | expression | default kind |
+| metric | expression | default role |
 |---|---|---|
 | `total_volume` | `SUM(volume)` | quantity |
 | `avg_price_in_lc` | `SUM(volume * price_in_lc) / SUM(volume)` | rate |
 | `avg_fx_rate` | `SUM(volume * price) / SUM(volume * price_in_lc)` | rate |
 | `avg_price` | `SUM(volume * price) / SUM(volume)` | rate |
-| `total_revenue` | `SUM(revenue)` | measure |
+| `total_revenue` | `SUM(revenue)` | (measure) |
 
 ```yaml
 graphs:
   revenue:
     root: total_revenue
     components:
-      total_revenue: [avg_price, total_volume]
-      avg_price: [avg_price_in_lc, avg_fx_rate]
+      total_revenue: avg_price * total_volume
+      avg_price: avg_price_in_lc + avg_fx_rate
 ```
 
 ### `fake_sales.yaml`
 
 `total_volume`, `total_revenue`, `total_cost`, `total_profit` and `avg_price`
 already exist. Add `avg_price_in_lc`, `avg_fx_rate`, `avg_unit_cost`,
-`avg_cost_in_lc`, `avg_cost_fx_rate` and `total_flat_fee`, with kinds, and two
-graphs: `revenue` (price × volume + flat fee, with `total_volume` shared) and
-`cost` (unit cost × volume, sharing `total_volume`). The exact shape is taken
-from the existing PVM tests and notebooks.
+`avg_cost_in_lc`, `avg_cost_fx_rate` and `total_flat_fee`, with default roles
+(`rate` for the `avg_*` metrics, `quantity` for `total_volume`), and these
+graphs. Costs stay positive; subtraction is expressed with `-`.
+
+```yaml
+graphs:
+  revenue:
+    root: total_revenue
+    components:
+      total_revenue: avg_price * total_volume + total_flat_fee
+      avg_price: avg_price_in_lc + avg_fx_rate
+  cost:
+    root: total_cost
+    components:
+      total_cost: avg_unit_cost * total_volume
+      avg_unit_cost: avg_cost_in_lc + avg_cost_fx_rate
+  profit:
+    root: total_profit
+    components:
+      total_profit: total_revenue - total_cost
+      total_revenue: avg_price * total_volume + total_flat_fee
+      total_cost: avg_unit_cost * total_volume
+      avg_price: avg_price_in_lc + avg_fx_rate
+      avg_unit_cost: avg_cost_in_lc + avg_cost_fx_rate
+```
+
+`total_volume` is shared by the revenue and cost branches of `profit`. The
+exact `fx` rate expressions follow the field definitions in the file.
 
 `olist.yaml` is left unchanged for now.
 
 Both files are plain Ossie documents; non-PVM tools ignore the extension.
-They need to be regenerated or edited by hand consistently: check whether a
-generator produces these files before hand-editing.
+Check whether a generator produces these files before hand-editing.
 
 ## Tests
 
-- Valid: `mini_fx.yaml` and `fake_sales.yaml` produce no errors (parametrised
-  over every file in `src/datasets/ossie/`, so `olist.yaml` is also checked
-  and stays valid without graphs).
-- One case per error code: bad YAML, unknown version, unknown kind, unresolved
-  ref, ambiguous ref, missing effective kind, `kinds` key not in graph,
-  override changing validity (same metric valid in one graph, invalid in
-  another), cycle, unreachable node,
-  duplicate child, rate+quantity pairing, rate with measure child, composite
-  with a non-rate child, reconciliation not a leaf, non-measure root.
+- Valid: every file in `src/datasets/ossie/` produces no errors (parametrised,
+  so `olist.yaml` is also checked and stays valid without graphs).
+- One case per error code: bad YAML, unknown version, unknown role, bad
+  expression syntax, unresolved name, ambiguous name, invalid node name,
+  `roles` key not in graph, cycle, unreachable node, duplicate name in an
+  expression, product without exactly one rate and one quantity, measure
+  parent with a rate/quantity single, rate parent mixing product and singles,
+  composite with a non-rate single, quantity parent without a product.
+- Same metric valid under different roles in two graphs.
+- Negated terms (`a - b`, `-a + b`) parse.
 - JSON payload accepted.
 - CLI exit codes.
 
 ## Open questions
 
-1. **Subtraction.** PVM's `calculated_definition` sums `measure` children, so
-   `profit = revenue - cost` cannot be expressed as a graph unless the cost
-   node is defined with a negative sign in its metric. The spec has no sign or
-   operator; decide whether profit graphs are in scope for `fake_sales`.
-2. **Node name vs. column name.** PVM looks up columns by measure name, while
-   metric names here differ (`total_revenue` vs. `revenue`). The loader (out
-   of scope) will need a name mapping rule; the spec may later need an
-   optional `alias`.
-3. **Root kind.** Restricting `root` to `measure` is a choice; relax it if
-   rate-rooted graphs are needed.
+1. **Sign semantics in the loader.** `-` implies negating a child's value and
+   effects when building PVM measures (which only sum). The loader (out of
+   scope) must define this precisely, including for negated products.
+2. **Name mapping.** PVM looks up columns by measure name; the loader (out of
+   scope) decides how metric names map to the API. The schema uses only Ossie
+   metric names.
