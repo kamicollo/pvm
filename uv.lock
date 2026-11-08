@@ -2124,9 +2124,9 @@ wheels = [
 name = "pvm"
 version = "0.2.0"
 source = { editable = "." }
+default-groups = ["ossie"]
 dependencies = [
     { name = "altair" },
-    { name = "apache-ossie" },
     { name = "faker" },
     { name = "fastexcel" },
     { name = "gcsfs" },
@@ -2154,10 +2154,14 @@ all = [
     { name = "pygraphviz" },
 ]
 
+[package.dev-dependencies]
+ossie = [
+    { name = "apache-ossie" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "altair", specifier = ">=5.4.1" },
-    { name = "apache-ossie", git = "https://github.com/apache/ossie.git?subdirectory=python" },
     { name = "faker", specifier = ">=33.0.0" },
     { name = "fastexcel", specifier = ">=0.12.0" },
     { name = "gcsfs", specifier = ">=2024.10.0" },
@@ -2181,6 +2185,9 @@ requires-dist = [
     { name = "ty", specifier = ">=0.0.1a29" },
 ]
 provides-extras = ["all"]
+
+[package.metadata.requires-dev]
+ossie = [{ name = "apache-ossie", git = "https://github.com/apache/ossie.git?subdirectory=python" }]
 
 [[package]]
 name = "pyarrow"
