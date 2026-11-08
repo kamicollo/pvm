@@ -20,4 +20,9 @@ install_hooks:
 clear_cache:
 	python -c "from datasets.cache import clear_cache; clear_cache()"
 
+download_olist:
+	mkdir -p src/datasets/olist/raw
+	uvx --from kaggle kaggle datasets download -d olistbr/brazilian-ecommerce -p src/datasets/olist/raw --unzip
+	uv run python -m datasets.build_olist
+
 setup: install_hooks
