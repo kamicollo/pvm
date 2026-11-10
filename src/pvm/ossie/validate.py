@@ -300,6 +300,8 @@ def validate_graphs(doc: Mapping[str, Any], index: dict[str, list[MetricInfo]], 
             state = _GraphState(name=name, graph=graph, path=f"{_EXT_PATH}.graphs.{name}")
             _validate_graph(state, index, issues)
             used.update(state.node_paths)
-    elif doc.get("custom_extensions") and any(e.get("vendor_name") == "PVM" for e in doc["custom_extensions"]):
+    elif doc.get("custom_extensions") and any(
+        isinstance(e, Mapping) and e.get("vendor_name") == "PVM" for e in doc["custom_extensions"]
+    ):
         return
     _warn_unused(index, used, issues)

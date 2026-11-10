@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StrictInt
 
 SUPPORTED_VERSIONS = {1}
 
@@ -22,7 +22,7 @@ class MetricExtension(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    version: int
+    version: StrictInt
     role: NodeRole = NodeRole.measure
 
 
@@ -41,5 +41,5 @@ class GraphsExtension(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    version: int
+    version: StrictInt
     graphs: dict[str, Graph]

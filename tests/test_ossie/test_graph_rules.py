@@ -27,7 +27,7 @@ def _ext(payload: Any) -> list[dict[str, str]]:  # noqa: ANN401
 
 
 def make_doc(
-    metrics: Metrics, graphs: dict[str, Any] | None = None, version: int = 1
+    metrics: Metrics, graphs: dict[str, Any] | None = None, version: object = 1
 ) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
     for name, (datatype, role) in metrics.items():
@@ -103,6 +103,12 @@ def test_unknown_version() -> None:
     assert "PVM_UNKNOWN_VERSION" in codes(
         run(make_doc(BASE, {"r": g("total")}, version=99))
     )
+
+
+@pytest.mark.parametrize("version", [True, "1"])
+def test_non_strict_int_version_is_bad_extension(version: object) -> None:
+    doc = make_doc(BASE, {"r": g("total")}, version=version)
+    assert "PVM_BAD_EXTENSION" in codes(run(doc))
 
 
 def test_bad_extension() -> None:

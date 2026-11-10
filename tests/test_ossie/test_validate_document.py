@@ -127,6 +127,25 @@ def test_sdk_missing_runs_pvm_payload_layers(monkeypatch: pytest.MonkeyPatch) ->
     assert "PVM_UNKNOWN_ROLE" in codes
 
 
+def test_non_mapping_custom_extension_entry_is_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_import = builtins.__import__
+
+    def _fail_ossie_import(name: str, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+        if name == "ossie" or name.startswith("ossie."):
+            raise ImportError("ossie not installed")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _fail_ossie_import)
+
+    doc = _minimal_doc(custom_extensions=[1])
+    report = validate_document(doc)
+    codes = [i.code for i in report.issues]
+    assert codes[0] == "OSSIE_SDK_SKIPPED"
+    assert "PVM_ROLE_UNUSED" not in codes
+
+
 def test_ossie_sdk_rejects_invalid_document() -> None:
     doc = _minimal_doc()
     del doc["name"]

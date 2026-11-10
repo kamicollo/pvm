@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from pvm.ossie.models import NodeRole
 from pvm.ossie.refs import MetricInfo, build_metric_index, resolve
 from pvm.ossie.report import Issue
@@ -139,6 +141,26 @@ def test_index_unknown_version_issue() -> None:
     assert index["m"][0].default_role is None
     assert len(issues) == 1
     assert issues[0].code == "PVM_UNKNOWN_VERSION"
+    assert issues[0].severity == "error"
+    assert issues[0].path == "metrics[0].custom_extensions[PVM]"
+
+
+@pytest.mark.parametrize("version_yaml", ["version: true\n", 'version: "1"\n'])
+def test_index_non_strict_int_version_is_bad_extension(version_yaml: str) -> None:
+    doc: dict[str, Any] = {
+        "metrics": [
+            {
+                "name": "m",
+                "custom_extensions": _pvm_extension(f"{version_yaml}role: rate\n"),
+            },
+        ],
+    }
+    issues: list[Issue] = []
+    index = build_metric_index(doc, issues)
+
+    assert index["m"][0].default_role is None
+    assert len(issues) == 1
+    assert issues[0].code == "PVM_BAD_EXTENSION"
     assert issues[0].severity == "error"
     assert issues[0].path == "metrics[0].custom_extensions[PVM]"
 
