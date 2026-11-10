@@ -101,6 +101,40 @@ def test_missing_data_key_issue() -> None:
     assert issues[0].code == "PVM_BAD_YAML"
 
 
+def test_non_mapping_entry_is_skipped() -> None:
+    obj = {
+        "custom_extensions": [
+            "not-a-mapping",
+            {"vendor_name": "PVM", "data": "version: 1"},
+        ],
+    }
+    issues: list[Issue] = []
+    payload = find_pvm_extension(obj, "root", issues)
+    assert payload == {"version": 1}
+    assert issues == []
+
+
+def test_non_list_custom_extensions_returns_none() -> None:
+    obj = {"custom_extensions": "not-a-list"}
+    issues: list[Issue] = []
+    payload = find_pvm_extension(obj, "root", issues)
+    assert payload is None
+    assert issues == []
+
+
+def test_non_string_data_issue() -> None:
+    obj = {
+        "custom_extensions": [
+            {"vendor_name": "PVM", "data": 123},
+        ],
+    }
+    issues: list[Issue] = []
+    payload = find_pvm_extension(obj, "root", issues)
+    assert payload is None
+    assert len(issues) == 1
+    assert issues[0].code == "PVM_BAD_YAML"
+
+
 def test_duplicate_pvm_extension_issue() -> None:
     obj = {
         "custom_extensions": [

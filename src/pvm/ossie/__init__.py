@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pvm.ossie.document import validate_document
 from pvm.ossie.expr import ExprError, Term, parse_expression
 from pvm.ossie.models import Graph, GraphsExtension, MetricExtension, NodeRole
 from pvm.ossie.refs import MetricInfo, build_metric_index, resolve
@@ -20,4 +21,5 @@ __all__ = [
     "build_metric_index",
     "parse_expression",
     "resolve",
+    "validate_document",
 ]

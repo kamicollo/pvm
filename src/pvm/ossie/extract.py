@@ -47,15 +47,20 @@ def find_pvm_extension(obj: Mapping[str, Any], path: str, issues: list[Issue]) -
     Looks at obj["custom_extensions"] for exactly one entry whose
     vendor_name is "PVM", parses its "data" string as YAML (which also
     accepts JSON), and returns the resulting mapping. Appends PVM_BAD_YAML
-    for parse failures, non-mapping payloads, or a missing "data" key, and
-    PVM_DUPLICATE_EXTENSION when more than one PVM entry is present. Returns
-    None when there is no PVM extension or an issue was raised.
+    for parse failures, non-mapping payloads, a missing or non-string "data"
+    key, and PVM_DUPLICATE_EXTENSION when more than one PVM entry is
+    present. A "custom_extensions" that is not a list, or an entry that is
+    not a mapping, is treated as absent/skipped rather than raised as an
+    issue. Returns None when there is no PVM extension or an issue was
+    raised.
     """
     extensions = obj.get("custom_extensions")
-    if not extensions:
+    if not extensions or not isinstance(extensions, list):
         return None
 
-    pvm_entries = [entry for entry in extensions if entry.get("vendor_name") == _VENDOR_NAME]
+    pvm_entries = [
+        entry for entry in extensions if isinstance(entry, Mapping) and entry.get("vendor_name") == _VENDOR_NAME
+    ]
     if not pvm_entries:
         return None
 
@@ -82,4 +87,16 @@ def find_pvm_extension(obj: Mapping[str, Any], path: str, issues: list[Issue]) -
         )
         return None
 
-    return _parse_payload(entry["data"], path, issues)
+    data = entry["data"]
+    if not isinstance(data, str):
+        issues.append(
+            Issue(
+                code="PVM_BAD_YAML",
+                severity="error",
+                path=path,
+                message=f"PVM extension 'data' must be a string, got {type(data).__name__}",
+            ),
+        )
+        return None
+
+    return _parse_payload(data, path, issues)
