@@ -87,6 +87,11 @@ datasets:
       sql: SUM(volume)
     description: Total units sold
     datatype: Float
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: quantity
   - name: total_revenue
     expression:
       sql: SUM(revenue)
@@ -107,5 +112,88 @@ datasets:
       sql: SUM(unit_price * volume) / SUM(volume)
     description: Volume-weighted average price
     datatype: Float
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: rate
+  - name: avg_price_in_lc
+    expression:
+      sql: SUM(volume * price_in_lc) / SUM(volume)
+    description: Volume-weighted average price in local currency
+    datatype: Float
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: rate
+  - name: avg_fx_rate
+    expression:
+      sql: SUM(volume * unit_price) / SUM(volume * price_in_lc)
+    description: Volume-weighted average FX rate applied to price
+    datatype: Float
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: rate
+  - name: avg_unit_cost
+    expression:
+      sql: SUM(volume * unit_cost) / SUM(volume)
+    description: Volume-weighted average unit cost
+    datatype: Float
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: rate
+  - name: avg_cost_in_lc
+    expression:
+      sql: SUM(volume * cost_in_lc) / SUM(volume)
+    description: Volume-weighted average unit cost in local currency
+    datatype: Float
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: rate
+  - name: avg_cost_fx_rate
+    expression:
+      sql: SUM(volume * unit_cost) / SUM(volume * cost_in_lc)
+    description: Volume-weighted average FX rate applied to cost
+    datatype: Float
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: rate
+  - name: total_flat_fee
+    expression:
+      sql: SUM(flat_fee)
+    description: Total flat fee adjustment
+    datatype: Float
 relationships: []
 metrics: []
+custom_extensions:
+- vendor_name: PVM
+  data: |
+    version: 1
+    graphs:
+      revenue:
+        root: total_revenue
+        components:
+          total_revenue: avg_price * total_volume + total_flat_fee
+          avg_price: avg_price_in_lc + avg_fx_rate
+      cost:
+        root: total_cost
+        components:
+          total_cost: avg_unit_cost * total_volume
+          avg_unit_cost: avg_cost_in_lc + avg_cost_fx_rate
+      profit:
+        root: total_profit
+        components:
+          total_profit: total_revenue - total_cost
+          total_revenue: avg_price * total_volume + total_flat_fee
+          total_cost: avg_unit_cost * total_volume
+          avg_price: avg_price_in_lc + avg_fx_rate
+          avg_unit_cost: avg_cost_in_lc + avg_cost_fx_rate

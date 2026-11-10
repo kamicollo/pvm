@@ -53,6 +53,41 @@ datasets:
       sql: SUM(volume)
     description: Total units sold
     datatype: Integer
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: quantity
+  - name: avg_price_in_lc
+    expression:
+      sql: SUM(volume * price_in_lc) / SUM(volume)
+    description: Volume-weighted average price in local currency
+    datatype: Float
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: rate
+  - name: avg_fx_rate
+    expression:
+      sql: SUM(volume * price) / SUM(volume * price_in_lc)
+    description: Volume-weighted average FX rate
+    datatype: Float
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: rate
+  - name: avg_price
+    expression:
+      sql: SUM(volume * price) / SUM(volume)
+    description: Volume-weighted average price
+    datatype: Float
+    custom_extensions:
+    - vendor_name: PVM
+      data: |
+        version: 1
+        role: rate
   - name: total_revenue
     expression:
       sql: SUM(revenue)
@@ -60,3 +95,13 @@ datasets:
     datatype: Float
 relationships: []
 metrics: []
+custom_extensions:
+- vendor_name: PVM
+  data: |
+    version: 1
+    graphs:
+      revenue:
+        root: total_revenue
+        components:
+          total_revenue: avg_price * total_volume
+          avg_price: avg_price_in_lc + avg_fx_rate
