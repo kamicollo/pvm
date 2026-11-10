@@ -14,6 +14,8 @@ from pvm.ossie.expr import ExprError, Term, parse_expression
         ("a * b", [Term(("a", "b"), False)]),
         ("a - b", [Term(("a",), False), Term(("b",), True)]),
         ("-a + b", [Term(("a",), True), Term(("b",), False)]),
+        ("a + -b", [Term(("a",), False), Term(("b",), True)]),
+        ("a - -b", [Term(("a",), False), Term(("b",), False)]),
         (
             "a*b + c - d*e",
             [
@@ -60,3 +62,8 @@ def test_three_terms_two_products() -> None:
 def test_parse_expression_errors(text: str) -> None:
     with pytest.raises(ExprError):
         parse_expression(text)
+
+
+def test_parse_expression_invalid_char_after_newline_raises() -> None:
+    with pytest.raises(ExprError):
+        parse_expression("a +\n$")

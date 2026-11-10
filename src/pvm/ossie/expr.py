@@ -20,7 +20,7 @@ _TOKEN_RE = re.compile(
     (?P<name>[A-Za-z_][A-Za-z0-9_]*)
     | (?P<op>[+*-])
     | (?P<ws>\s+)
-    | (?P<other>.)
+    | (?P<other>[\s\S])
     """,
     re.VERBOSE,
 )
@@ -91,10 +91,10 @@ class _Parser:
         return self._advance()
 
     def parse_expression(self) -> list[Term]:
-        terms = [self._parse_term(allow_leading_minus=True)]
+        terms = [self._parse_term()]
         while self._peek() in ("+", "-"):
             op = self._advance()
-            term = self._parse_term(allow_leading_minus=False)
+            term = self._parse_term()
             if op == "-":
                 term = Term(term.names, not term.negated)
             terms.append(term)
@@ -102,9 +102,9 @@ class _Parser:
             raise self._error(f"unexpected token {self._peek()!r}")
         return terms
 
-    def _parse_term(self, *, allow_leading_minus: bool) -> Term:
+    def _parse_term(self) -> Term:
         negated = False
-        if allow_leading_minus and self._peek() == "-":
+        if self._peek() == "-":
             self._advance()
             negated = True
         first = self._expect_name()
