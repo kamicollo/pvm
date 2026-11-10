@@ -135,6 +135,21 @@ def test_ossie_sdk_rejects_invalid_document() -> None:
     assert report.issues[0].code == "OSSIE_INVALID"
 
 
+def test_missing_version_is_ossie_invalid() -> None:
+    doc = _minimal_doc()
+    del doc["version"]
+    report = validate_document(doc)
+    assert not report.ok
+    assert report.issues[0].code == "OSSIE_INVALID"
+
+
+def test_null_valued_property_is_ossie_invalid() -> None:
+    doc = _minimal_doc(name=None)
+    report = validate_document(doc)
+    assert not report.ok
+    assert report.issues[0].code == "OSSIE_INVALID"
+
+
 def test_layer_2_error_skips_later_layers() -> None:
     doc = _minimal_doc()
     del doc["name"]

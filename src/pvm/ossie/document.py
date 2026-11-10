@@ -86,8 +86,13 @@ def _validate_with_ossie(doc: Mapping[str, Any], issues: list[Issue]) -> None:
         return
 
     try:
-        OssieDocument.model_validate(doc)
-    except ValidationError as exc:
+        # `_from_document` applies the schema checks `model_validate` alone would
+        # miss (a missing `version`, a null-valued property, ...); see its
+        # docstring on `OssieDocument.from_ossie_yaml`, its public, text-taking
+        # counterpart. `doc` is already a parsed mapping, so call the shared
+        # private entry point directly rather than re-serializing to YAML text.
+        OssieDocument._from_document(doc)  # noqa: SLF001
+    except (ValidationError, ValueError) as exc:
         issues.append(_error("OSSIE_INVALID", _ROOT_PATH, f"document failed Ossie SDK validation: {exc}"))
 
 
