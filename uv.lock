@@ -2147,16 +2147,23 @@ dependencies = [
     { name = "python-pest" },
     { name = "ruff" },
     { name = "ty" },
+    { name = "types-pyyaml" },
 ]
 
 [package.optional-dependencies]
 all = [
     { name = "pygraphviz" },
 ]
+ossie = [
+    { name = "pydantic" },
+    { name = "pyyaml" },
+]
 
 [package.dev-dependencies]
 ossie = [
     { name = "apache-ossie" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -2174,6 +2181,7 @@ requires-dist = [
     { name = "mypy", specifier = ">=1.14.0" },
     { name = "pins", specifier = ">=0.8.6" },
     { name = "polars", specifier = ">=1.12.0" },
+    { name = "pydantic", marker = "extra == 'ossie'", specifier = ">=2" },
     { name = "pygments", specifier = ">=2.18.0" },
     { name = "pygraphviz", marker = "extra == 'all'", specifier = ">=1.14" },
     { name = "pyperclip", specifier = ">=1.9.0" },
@@ -2181,13 +2189,19 @@ requires-dist = [
     { name = "pytest", specifier = ">=8.3.3" },
     { name = "pytest-cov", specifier = ">=6.0.0" },
     { name = "python-pest", specifier = ">=0.1.1" },
+    { name = "pyyaml", marker = "extra == 'ossie'", specifier = ">=6" },
     { name = "ruff", specifier = ">=0.7.3" },
     { name = "ty", specifier = ">=0.0.1a29" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20241230" },
 ]
-provides-extras = ["all"]
+provides-extras = ["all", "ossie"]
 
 [package.metadata.requires-dev]
-ossie = [{ name = "apache-ossie", git = "https://github.com/apache/ossie.git?subdirectory=python" }]
+ossie = [
+    { name = "apache-ossie", git = "https://github.com/apache/ossie.git?subdirectory=python" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml", specifier = ">=6" },
+]
 
 [[package]]
 name = "pyarrow"
@@ -3048,6 +3062,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/31/f8/f6ee4c803a7beccffee21bb29a71573b39f7037c224843eff53e5308c16e/types-python-dateutil-2.9.0.20241003.tar.gz", hash = "sha256:58cb85449b2a56d6684e41aeefb4c4280631246a0da1a719bdbe6f3fb0317446", size = 9210, upload-time = "2024-10-03T02:43:26.932Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/35/d6/ba5f61958f358028f2e2ba1b8e225b8e263053bd57d3a79e2d2db64c807b/types_python_dateutil-2.9.0.20241003-py3-none-any.whl", hash = "sha256:250e1d8e80e7bbc3a6c99b907762711d1a1cdd00e978ad39cb5940f6f0a87f3d", size = 9693, upload-time = "2024-10-03T02:43:25.458Z" },
+]
+
+[[package]]
+name = "types-pyyaml"
+version = "6.0.12.20261103"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/82/2ed4d215a2840b467a9a864f03b0d21904250e28f5e1f006ad36fba0311a/types_pyyaml-6.0.12.20261103.tar.gz", hash = "sha256:7a1b5f837881dd35d5448b5f18275164f89f206185e31e8eae6e0b42607bc001", size = 18911, upload-time = "2026-11-03T08:45:23.714Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e8/10/4353eb86278f6a59aeb9fe2be4d979c20b110b4009fa455a3ea6467cf5cb/types_pyyaml-6.0.12.20261103-py3-none-any.whl", hash = "sha256:444654c61f635dab82c092a511aa96a0ce31164810784b9a37314e3e56532ac8", size = 21299, upload-time = "2026-11-03T08:45:22.749Z" },
 ]
 
 [[package]]

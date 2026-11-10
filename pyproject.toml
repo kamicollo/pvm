@@ -15,6 +15,7 @@ dependencies = [
     "mkdocs-jupyter>=0.25.1",
     "mkdocstrings-python>=2.0.0",
     "mypy>=1.14.0",
+    "types-pyyaml>=6.0.12.20241230",
     "pins>=0.8.6",
     "polars>=1.12.0",
     "pygments>=2.18.0",
@@ -31,6 +32,10 @@ dependencies = [
 [project.optional-dependencies]
 all = [
     "pygraphviz>=1.14",
+]
+ossie = [
+    "pydantic>=2",
+    "pyyaml>=6",
 ]
 
 [project.scripts]
@@ -137,7 +142,7 @@ module = ["pvm.common.observable_list"]
 disable_error_code = ["override", "misc"]
 
 [dependency-groups]
-ossie = ["apache-ossie"]
+ossie = ["apache-ossie", "pydantic>=2", "pyyaml>=6"]
 
 [tool.uv]
 default-groups = ["ossie"]
