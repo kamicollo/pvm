@@ -1,6 +1,6 @@
 # Spec: PVM vendor extension for Ossie
 
-Status: draft. Implements Phase 1 of [ossie-integration.md](ossie-integration.md)
+Status: implemented. Implements Phase 1 of [ossie-integration.md](ossie-integration.md)
 (Option 1: Ossie is the semantic model, PVM graph is a vendor extension).
 
 ## Scope
