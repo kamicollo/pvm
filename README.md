@@ -20,3 +20,15 @@ and are not stored in git. Check the dataset page for its license terms.
    of the same name in `src/datasets/olist/`. It needs `uv` and network access. The raw CSVs are about 120 MB.
 
 Run `make download_olist` again to refresh the data. Existing files are overwritten.
+
+## Ossie documents
+
+Ossie semantic models in `src/datasets/ossie/` can carry PVM graphs in a `PVM` vendor extension
+(see [docs/ossie-pvm-extension.md](docs/ossie-pvm-extension.md)). Validate them with:
+
+```sh
+pip install "pvm[ossie]"
+python -m pvm.ossie validate FILE [FILE ...]
+```
+
+The command exits with 1 if any file has errors.
