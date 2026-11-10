@@ -6,6 +6,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict
 
+SUPPORTED_VERSIONS = {1}
+
 
 class NodeRole(StrEnum):
     """The role a node plays within a PVM graph."""
